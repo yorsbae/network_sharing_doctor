@@ -29,6 +29,20 @@ def _build_parser() -> argparse.ArgumentParser:
     h.add_argument("--limit", type=int, default=20)
     sub.add_parser("rules-validate", help="Validasi berkas aturan")
     sub.add_parser("clear-history", help="Hapus seluruh riwayat kasus")
+    pp = sub.add_parser("paper", help="Ukuran kertas khusus di client (lokal, tanpa server)")
+    ps = pp.add_subparsers(dest="paper_cmd", required=True)
+    ps.add_parser("list", help="Daftar ukuran bawaan + milik pengguna")
+    pa = ps.add_parser("add", help="Tambah ukuran khusus")
+    pa.add_argument("--name", required=True)
+    pa.add_argument("--width", type=float, required=True, help="mm")
+    pa.add_argument("--height", type=float, required=True, help="mm")
+    pr = ps.add_parser("remove", help="Hapus ukuran khusus")
+    pr.add_argument("--name", required=True)
+    pl = ps.add_parser("layout", help="Hitung tata letak halaman")
+    pl.add_argument("--paper", required=True)
+    pl.add_argument("--landscape", action="store_true")
+    pl.add_argument("--margin", type=float, default=10.0, help="mm, semua sisi")
+    pl.add_argument("--scale", type=float, default=100.0)
     return p
 
 
@@ -84,6 +98,41 @@ def _cmd_clear(_: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_paper(a: argparse.Namespace) -> int:
+    from nsd.app_config import data_dir
+    from nsd.paper import Margins, Orientation, PageLayout, PaperError, PaperStore
+
+    store = PaperStore(data_dir())
+    try:
+        if a.paper_cmd == "list":
+            custom = {p.name for p in store.custom()}
+            for p in store.all():
+                print(f"{'khusus' if p.name in custom else 'bawaan':7} {p.label()}")
+            for w in store.load_errors:
+                print("PERINGATAN:", w, file=sys.stderr)
+        elif a.paper_cmd == "add":
+            p = store.add(a.name, a.width, a.height)
+            print(f"Ditambahkan (lokal di client): {p.label()}")
+        elif a.paper_cmd == "remove":
+            ok = store.remove(a.name)
+            print("Dihapus." if ok else "Tidak ditemukan.")
+            return 0 if ok else 1
+        else:
+            paper = next((p for p in store.all() if p.name.lower() == a.paper.strip().lower()), None)
+            if paper is None:
+                raise PaperError(f"Ukuran '{a.paper}' tidak ada.")
+            m = a.margin
+            lay = PageLayout(paper, Orientation.LANDSCAPE if a.landscape else Orientation.PORTRAIT,
+                             Margins(m, m, m, m), a.scale)
+            w, h = lay.page_mm
+            print(f"{paper.label()} {'lanskap' if a.landscape else 'potret'}: halaman {w:g}×{h:g} mm, "
+                  f"area isi {lay.content_width_mm:g}×{lay.content_height_mm:g} mm, skala {a.scale:g}%")
+    except PaperError as exc:
+        print(f"Input tidak valid: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
@@ -92,7 +141,8 @@ def main(argv: list[str] | None = None) -> int:
 
             return run_gui()
         return {"scan": _cmd_scan, "history": _cmd_history,
-                "rules-validate": _cmd_rules_validate, "clear-history": _cmd_clear}[args.cmd](args)
+                "rules-validate": _cmd_rules_validate, "clear-history": _cmd_clear,
+                "paper": _cmd_paper}[args.cmd](args)
     except ValidationError as exc:
         print(f"Input tidak valid: {exc}", file=sys.stderr)
         return 2

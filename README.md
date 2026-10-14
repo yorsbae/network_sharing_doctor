@@ -12,6 +12,10 @@ PYTHONPATH=src python -m nsd scan --role client --type folder --host SERVER01 --
 PYTHONPATH=src python -m nsd scan --host SERVER01 --share EPSON --type printer --json --out laporan.json
 PYTHONPATH=src python -m nsd history | rules-validate | clear-history
 
+# Ukuran kertas khusus di client (lokal, tanpa server)
+PYTHONPATH=src python -m nsd paper add --name "F4 Kantor" --width 210 --height 330
+PYTHONPATH=src python -m nsd paper list | layout --paper "F4 Kantor" --margin 12 | remove --name "F4 Kantor"
+
 # GUI (butuh PySide6)
 pip install -e ".[gui]" && python -m nsd
 ```

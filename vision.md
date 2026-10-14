@@ -83,6 +83,39 @@ Client harus memiliki target server yang eksplisit, misalnya nama komputer atau 
 - Jangan menjanjikan bahwa semua driver atau semua model printer mendukung ukuran kertas khusus dari client.
 - Jangan mengubah konfigurasi global server hanya untuk memenuhi kebutuhan satu client tanpa konfirmasi.
 
+#### 4.5 Mode mandiri di client: Print Layout dan ukuran kertas sendiri
+
+Pertanyaan yang diajukan: apakah aplikasi dapat berjalan sebagai aplikasi desktop mandiri dengan tampilan
+*print layout* (seperti aplikasi pengolah dokumen), dengan ukuran kertas yang ditambahkan sendiri di client,
+sehingga tidak bergantung pada server? Jawaban jujurnya: **sebagian bisa, sebagian bergantung driver**.
+
+| Kebutuhan | Bisa? | Status |
+|---|---|---|
+| Daftar ukuran kertas milik pengguna, disimpan di client (mis. 210 × 330 mm) | Ya, sepenuhnya lokal | Dikerjakan (`nsd.paper.store`) |
+| Tampilan *print layout*: pilih kertas, orientasi, margin, skala, pratinjau halaman | Ya, murni di aplikasi | Dikerjakan (halaman *Kertas & Layout*); belum dilihat di Windows |
+| Ukuran kustom benar-benar dipakai saat mencetak, tanpa mengubah server | **Bergantung driver** | Logika penilaian ada (`nsd.paper.capability`); belum diuji dengan driver nyata |
+| Ukuran milik aplikasi ini muncul di aplikasi lain (Word, Excel, dll.) | Hanya bila dibuat menjadi *formulir Windows* | Belum dikerjakan; butuh hak admin |
+| Sepenuhnya tidak bergantung pada server | **Tidak dapat dijamin** | Lihat batasan di bawah |
+
+Jalur yang dinilai aplikasi, berurutan dari yang paling mandiri:
+
+1. **Per dokumen (DEVMODE ukuran kustom).** Lebar/tinggi dikirim bersama setiap pekerjaan cetak. Tanpa hak admin
+   dan tanpa menyentuh server. Hanya jika driver menyatakan mendukung ukuran kustom dan ukurannya dalam rentang driver.
+2. **Formulir di spooler client.** Memerlukan admin di client. Untuk sambungan ke printer share, belum terbukti apakah
+   formulir lokal atau daftar formulir server yang berlaku, sehingga dilaporkan *Belum diketahui*, bukan *Bisa*.
+3. **Antrean lokal di client** (printer dipasang di client dengan driver sendiri, port menuju share atau printer).
+   Pengaturan kertas menjadi milik client, tetapi pengiriman tetap lewat jaringan dan pemasangan driver dapat dibatasi
+   kebijakan Windows.
+4. **Formulir di server.** Bukan jalur utama: perlu admin di server dan memengaruhi semua client. Hanya atas konfirmasi eksplisit.
+
+Batasan yang harus dinyatakan kepada pengguna:
+
+- Printer fisik harus mampu menangani ukuran itu; aplikasi tidak dapat menambah kemampuan perangkat keras.
+- Server tetap dibutuhkan untuk menerima pekerjaan cetak selama printer dipakai lewat share; yang dapat dimandirikan
+  hanya *definisi ukuran kertas*, bukan *transport*.
+- Bila data driver tidak cukup, hasilnya *Belum diketahui*; aplikasi tidak boleh menyatakan ukuran "didukung".
+- Tidak ada pencetakan nyata, tes cetak, maupun perubahan formulir sebelum jalur-jalur di atas diuji pada Windows asli.
+
 ### 5. Cakupan Fitur
 
 #### 5.1 Dashboard dan pemeriksaan cepat
@@ -317,6 +350,7 @@ Pertanyaan berikut ditunda sampai rancangan teknis dibahas bersama:
 - Penemuan server mendukung cara manual dan otomatis.
 - Pemilihan printer yang dibagikan dilakukan di server, menggunakan Registry dengan validasi.
 - Pengaturan ukuran kertas menjadi kebutuhan sisi client, dengan batasan driver/Windows yang harus dijelaskan.
+- Mode mandiri di client (print layout + ukuran kertas sendiri) layak sebagian: definisi ukuran dapat mandiri dari server, pengiriman cetak dan dukungan driver tidak (A.4.5).
 - Diagnosis tidak berhenti pada ping; aplikasi harus memeriksa jalur koneksi sharing yang sebenarnya.
 - Auto-fix menggunakan aturan yang teruji, persetujuan sesuai risiko, pencatatan, dan verifikasi ulang.
 - Tidak ada klaim bahwa semua error `0x...` pasti dapat diperbaiki otomatis.
@@ -1164,9 +1198,13 @@ Menjawab pertanyaan terbuka di A.13. Status: **sementara**, ditinjau di akhir Fa
 | 6 | Tes cetak | **Tidak ada tes cetak di Fase 1.** Pemeriksaan "operasi akhir" dilaporkan *Belum diperiksa*, bukan *Gagal*. Opsi: halaman uji bawaan Windows atas persetujuan, Fase 3. | Tes cetak menghabiskan kertas dan mengubah antrean. |
 | 7 | Retensi log & penyamaran | Retensi 180 hari / 500 kasus. Ekspor **disamarkan secara default** (host, IP, share, printer, nama pengguna, nama PC) dengan pratinjau sebelum simpan. | B.10. |
 | 8 | Kode error prioritas | `0x0000011B`, `0x00000709`, `0x00000005`/`0x80070005`, `0x80070035`, `0x80070043`, `0x00000006`, `0x00000016`. Kode **hanya petunjuk**; penyebab ditetapkan dari bukti pemeriksaan. | A.5.4. |
+| 9 | Ukuran kertas khusus di client | Daftar disimpan lokal (`paper_sizes.json`, tulis atomik, berkas rusak tidak ditimpa). Batas aplikasi 10–2000 mm; batas sebenarnya ditentukan driver. Ukuran disimpan sebagai potret (lebar ≤ tinggi). | A.4.4, A.4.5. |
+| 10 | Print Layout | Pratinjau halaman (kertas, orientasi, margin, skala) ada di aplikasi. **Belum ada pencetakan nyata**; menyusul setelah jalur per dokumen diuji di Windows. | Mencetak mengubah antrean dan menghabiskan kertas (lihat #6). |
+| 11 | Klaim "didukung" | Jalur kertas hanya *Tersedia* bila data driver (rentang ukuran + dukungan ukuran kustom) cukup; selain itu *Belum diketahui*. Tidak ada jalur yang ditandai terverifikasi di Windows. | A.6 #2; hindari janji berlebihan. |
 
 ### Batas Fase 1 (yang sengaja belum ada)
 
 - Tidak ada perubahan sistem apa pun. Aksi pada aturan hanya **disarankan**; status siklus hidup yang dipakai: *terdeteksi → disarankan → disetujui → diterapkan → terverifikasi*. Fase 1 berhenti di *disarankan*.
-- Wizard Server/Client penuh, pemilihan printer via Registry, dan ukuran kertas khusus di client (A.4.3, A.4.4) **belum dikerjakan**; dijadwalkan Fase 3–4 setelah mesin aturan dan snapshot terbukti.
+- Wizard Server/Client penuh dan pemilihan printer via Registry (A.4.3) **belum dikerjakan**; dijadwalkan Fase 3–4.
+- Ukuran kertas khusus di client (A.4.4/A.4.5): **daftar lokal, tata letak, pratinjau, dan penilaian jalur sudah ada**; pengumpulan kemampuan driver dari Windows, penerapan ke printer, dan pencetakan nyata **belum**.
 - Antarmuka Indonesia saja; opsi bahasa Inggris menyusul.

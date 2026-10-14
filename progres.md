@@ -2,7 +2,7 @@
 
 **Terakhir diperbarui:** 14 Oktober 2026
 **Fase aktif:** Fase 1 — MVP diagnostik baca-saja (lihat `vision.md`, Bagian B §14 dan Bagian C)
-**Versi kode:** 0.1.0 (belum dirilis) · **Tes:** 59 lulus (`unittest`, 0,12 dtk) · **Aturan:** 25 valid
+**Versi kode:** 0.1.0 (belum dirilis) · **Tes:** 82 lulus (`unittest`, ~0,2 dtk; 2 di antaranya smoke UI, dilewati bila PySide6 tidak ada) · **Aturan:** 25 valid
 
 ## Legenda
 `[x]` selesai dan lulus tes otomatis · `[~]` ditulis tetapi **belum bisa diuji di lingkungan ini** · `[ ]` belum dikerjakan
@@ -51,29 +51,52 @@
 gagal / lulus / belum diperiksa". → Logikanya terpenuhi dan teruji dengan mock; **belum terbukti di Windows asli**.
 Fase 1 belum boleh dinyatakan selesai sebelum `docs/test-matrix.md` butir 1–6 dan 10 terisi.
 
+## Pekerjaan awal Fase 3 — Kertas & Layout di client (vision A.4.4, A.4.5)
+Dikerjakan lebih awal dari urutan fase karena murni logika lokal dan tidak mengubah sistem apa pun.
+- [x] Model `PaperSize` (mm, divalidasi, disimpan sebagai potret, konversi 1/10 mm untuk DEVMODE dan inci), preset A3/A4/A5/F4 (Folio, 210×330)/Letter/Legal
+- [x] `PageLayout`: orientasi, margin, skala, area isi, peringatan margin lebih kecil dari area tak-tercetak printer
+- [x] `PaperStore`: ukuran buatan pengguna disimpan **lokal di client** (`paper_sizes.json`), tulis atomik, berkas rusak diabaikan dan **tidak ditimpa**, entri buruk dilewati satu per satu
+- [x] `capability.assess()`: menilai 4 jalur (per dokumen, formulir client, antrean lokal, formulir server) dari data driver; data tidak cukup → *Belum diketahui*, tidak pernah diklaim bisa; ukuran di luar rentang driver → *Tidak didukung*
+- [x] CLI: `nsd paper list | add | remove | layout`
+- [~] UI: halaman *Kertas & Layout* (daftar, tambah/hapus, orientasi/margin/skala, pratinjau halaman). **Dirender offscreen di Linux** dan terlihat benar; belum pernah dilihat di Windows
+- [ ] Mengumpulkan kemampuan driver dari Windows (`DeviceCapabilities`: rentang ukuran, dukungan ukuran kustom) → butuh adapter baru + uji di VM Windows
+- [ ] Menerapkan ukuran ke printer (jalur per dokumen, formulir client, antrean lokal) — Fase 2 (executor, snapshot, rollback) harus ada dulu
+- [ ] Pencetakan nyata dari tampilan print layout (Qt `QPrinter`/`QPageSize` kustom) — belum ada; tidak ada tes cetak sampai disetujui (Bagian C #6, #10)
+- [ ] Membuat ukuran terlihat di aplikasi lain (Word/Excel) = formulir Windows, butuh admin
+
+**Jawaban atas "apakah bisa mandiri dari server" (rinci di vision A.4.5):** definisi ukuran dan tampilan layout
+**bisa** mandiri. Ukuran itu dipakai printer atau tidak **bergantung driver dan perangkat**, dan pengiriman cetak lewat
+share tetap melewati server. Tidak ada yang dari ini terbukti pada driver nyata.
+
 ## Belum terbukti (jangan dipercaya sebelum diuji di Windows)
 1. Semua skrip PowerShell di `windows/powershell.py` belum pernah dijalankan di Windows (hanya jalur penolakan & mock).
 2. ID grup firewall `@FirewallAPI.dll,-32752` berasal dari ingatan; bila salah → hasil kosong → *Belum diperiksa* (tidak menyesatkan, tetapi tidak berguna).
 3. Klasifikasi error UNC (HRESULT/tipe exception/pesan Inggris) belum dicocokkan dengan perilaku Windows nyata; pesan di OS berbahasa lain mungkin tidak cocok (jatuh ke kategori `other`).
 4. Pemetaan kode error → petunjuk (0x11B, 0x709, dst.) berasal dari pengetahuan umum, belum direproduksi (vision B §8).
-5. UI belum pernah tampil.
+5. UI hanya pernah dirender offscreen di Linux; tampilan di Windows (font, DPI, tema gelap) belum dilihat.
+6. Seluruh penilaian jalur kertas (`capability.py`) berdasarkan pengetahuan umum tentang DEVMODE/formulir Windows, belum diuji dengan driver nyata. Khususnya: apakah sambungan printer share memakai formulir lokal client atau daftar formulir server.
+7. Perilaku driver V4 vs V3 terhadap ukuran kustom belum diperiksa.
 
 ## Bug yang ditemukan tes dan sudah diperbaiki
+- (Kertas) `assess()` awalnya menandai jalur formulir client/antrean lokal *Perlu admin* (dianggap bisa) walau rentang driver tidak diketahui → diperbaiki jadi *Belum diketahui*; tes `test_unknown_caps_never_claimed_available`.
+- (Kertas) nama preset "F4 / Folio" ditolak validator namaku sendiri (`/`) → diganti "F4 (Folio)".
+- (Kertas) logika pengecekan rentang awalnya berbelit dan salah arah → ditulis ulang orientasi-agnostik (sisi pendek vs pendek).
 - Kunci bukti `smb1` (mengandung angka) ditolak regex skema → regex diperbaiki.
 - Nama share mengizinkan `' ; \` & %` dsb. → diperketat (pertahanan berlapis; tidak eksploitabel karena parameter lewat env var).
 - `result(..., status=...)` bentrok dengan parameter `status` → pemeriksaan printer diam-diam jadi *internal error* → parameter dijadikan posisional-saja, kunci bukti diganti `printer_status`.
 
 ## Keputusan yang saya ambil sendiri (perlu persetujuan Anda)
+0. **Pertanyaan terbuka:** kata "AOL" di permintaan tidak saya pahami pasti. Saya menafsirkannya sebagai *aplikasi desktop mandiri dengan tampilan print layout seperti pengolah dokumen*. Bila yang dimaksud aplikasi atau produk tertentu, mohon sebutkan agar visi dikoreksi.
 1. Fase 1 **tanpa penemuan otomatis** dan **tanpa tes cetak** (Bagian C #5, #6).
 2. Nama share dengan `& % ' ; ( ) [ ] { } ~ # @ , = + ^ !` ditolak (mis. "R&D" tidak didukung). Trade-off keamanan; bisa dilonggarkan.
-3. UI baru 4 dari 8 menu di visi (Beranda, Diagnosa, Riwayat, Pengaturan). Mode Server/Client sebagai halaman terpisah, "Printer dan Ukuran Kertas", dan "Folder Sharing" menunggu Fase 3–4.
+3. UI baru 5 dari 8 menu di visi (Beranda, Diagnosa, Kertas & Layout, Riwayat, Pengaturan). Mode Server/Client sebagai halaman terpisah, "Printer dan Ukuran Kertas", dan "Folder Sharing" menunggu Fase 3–4.
 4. Tombol "Perbaiki Otomatis" ada tetapi **dinonaktifkan** dengan penjelasan (Fase 1 baca-saja).
 5. Tes memakai `unittest` (stdlib) karena pytest tidak tersedia; tetap kompatibel pytest.
 6. Riwayat lokal menyimpan target apa adanya; penyamaran hanya pada ekspor (lihat SECURITY.md).
 
 ## Belum dikerjakan dari visi (sesuai urutan fase)
 - Pemilihan printer di server via Registry + validasi ke printer Windows asli (A.4.3) — Fase 3
-- Ukuran kertas khusus di client, mis. 210×330 mm (A.4.4) — Fase 3/4
+- Ukuran kertas khusus di client: daftar/layout/penilaian sudah ada (lihat atas); pengumpulan kemampuan driver, penerapan ke printer, dan cetak nyata — Fase 3/4
 - Penemuan server otomatis (A.4.2) — Fase 3
 - Eksekutor perbaikan, UAC, snapshot, verifikasi ulang, rollback (B §11) — Fase 2
 - Izin share vs NTFS secara terpisah (A.5.6) — Fase 3
@@ -81,9 +104,11 @@ Fase 1 belum boleh dinyatakan selesai sebelum `docs/test-matrix.md` butir 1–6 
 
 ## Langkah berikutnya (urutan disarankan)
 1. Jalankan `tests/integration_windows` di VM Windows 11, isi `docs/test-matrix.md`, perbaiki skrip/ID yang meleset.
-2. Render UI di Windows; perbaiki masalah tata letak.
+2. Render UI di Windows (termasuk halaman Kertas & Layout); perbaiki masalah tata letak.
+2b. Tulis adapter baca-saja `DeviceCapabilities` untuk mengisi `DriverCaps`, uji dengan 2–3 driver nyata (mis. printer laser A4 dan printer dot-matrix/nota) di VM + printer fisik.
 3. Reproduksi 3–4 kegagalan nyata (445 diblokir, akses ditolak, Spooler mati, share printer salah) dan simpan sebagai fixture.
 4. Baru masuk Fase 2: executor + snapshot + verifikasi untuk **satu** aturan (`PRN-SPOOLER-001`), diuji di VM.
 
 ## Log perubahan
+- 2026-10-14 (sesi 2) — Modul `nsd.paper` (model, layout, store lokal, penilaian jalur), CLI `nsd paper`, halaman UI *Kertas & Layout*, vision A.4.5 + Bagian C #9–11; 82 tes. UI dirender offscreen (bukan Windows).
 - 2026-10-14 — Perapian `vision.md`; kerangka proyek; fondasi keselamatan; adapter Windows; mesin diagnostik; mesin aturan + 25 aturan; SQLite; laporan; CLI; UI PySide6; 59 tes; dokumen pendukung.
