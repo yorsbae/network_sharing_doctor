@@ -16,6 +16,8 @@ PYTHONPATH=src python -m nsd history | rules-validate | clear-history
 PYTHONPATH=src python -m nsd paper add --name "F4 Kantor" --width 210 --height 330
 PYTHONPATH=src python -m nsd paper list | layout --paper "F4 Kantor" --margin 12 | remove --name "F4 Kantor"
 
+# GUI: Diagnosa → Cetak… membuka popup Print Layout (printer, kertas, margin, pratinjau)
+#      Kertas & Layout → Cetak halaman uji… untuk memeriksa ukuran dengan penggaris
 # GUI (butuh PySide6)
 pip install -e ".[gui]" && python -m nsd
 ```

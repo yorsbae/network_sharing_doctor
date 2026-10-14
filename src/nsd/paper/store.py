@@ -49,6 +49,29 @@ class PaperStore:
             if os.path.exists(tmp):
                 os.unlink(tmp)
 
+    # Preferensi cetak terakhir (printer, kertas, margin, ...), lokal di client
+    @property
+    def prefs_path(self) -> Path:
+        return self.path.parent / "print_prefs.json"
+
+    def load_prefs(self) -> dict:
+        try:
+            d = json.loads(self.prefs_path.read_text(encoding="utf-8"))
+            return d if isinstance(d, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def save_prefs(self, prefs: dict) -> None:
+        self.prefs_path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=self.prefs_path.parent, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(prefs, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, self.prefs_path)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
     def custom(self) -> list[PaperSize]:
         return self._read()
 

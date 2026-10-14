@@ -75,13 +75,14 @@ class PaperPage(QWidget):
         of = QFormLayout(opts)
         of.addRow("Orientasi", self.orient); of.addRow("Margin", self.margin); of.addRow("Skala", self.scale)
 
+        tp = QPushButton("Cetak halaman uji…"); tp.clicked.connect(self._test_print)
         note = QLabel("Ukuran ini tersimpan di client dan tidak mengubah server. Apakah driver printer "
                       "menerimanya belum diperiksa di sini; lihat Fase 3 di progres.md.")
         note.setWordWrap(True)
 
         left = QVBoxLayout()
         left.addWidget(QLabel("Ukuran kertas")); left.addWidget(self.papers, 1); left.addWidget(rem)
-        left.addWidget(box); left.addWidget(opts); left.addWidget(self.info); left.addWidget(note)
+        left.addWidget(box); left.addWidget(opts); left.addWidget(tp); left.addWidget(self.info); left.addWidget(note)
         root = QHBoxLayout(self)
         lw = QWidget(); lw.setLayout(left); lw.setFixedWidth(340)
         root.addWidget(lw); root.addWidget(self.preview, 1)
@@ -121,6 +122,12 @@ class PaperPage(QWidget):
             self.info.setText(f"Tidak valid: {exc}"); self.preview.set_layout(None); return
         self.info.setText("\n".join(lay.warnings()) or f"Area isi {lay.content_width_mm:g} × {lay.content_height_mm:g} mm")
         self.preview.set_layout(lay)
+
+    def _test_print(self) -> None:
+        from nsd.printing import RulerTestJob
+        from nsd.ui.print_dialog import PrintLayoutDialog
+
+        PrintLayoutDialog(RulerTestJob(), self.store, self).exec()
 
     def _add(self) -> None:
         try:

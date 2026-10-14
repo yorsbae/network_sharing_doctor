@@ -80,8 +80,9 @@ class DiagnosePage(QWidget):
         self.fix = QPushButton("Perbaiki Otomatis"); self.fix.setEnabled(False)
         self.fix.setToolTip("Belum tersedia: Fase 1 bersifat baca-saja. Saran perbaikan tampil di panel penyebab.")
         self.export = QPushButton("Ekspor laporan…"); self.export.setEnabled(False); self.export.clicked.connect(self._export)
+        self.print_btn = QPushButton("Cetak…"); self.print_btn.setEnabled(False); self.print_btn.clicked.connect(self._print)
         self.cp_id = QPushButton("Salin ID kasus"); self.cp_id.setEnabled(False); self.cp_id.clicked.connect(self._copy_id)
-        for b in (self.go, self.fix, self.export, self.cp_id):
+        for b in (self.go, self.fix, self.export, self.print_btn, self.cp_id):
             row.addWidget(b)
         lay.addLayout(row)
         self.bar = QProgressBar(); self.bar.setVisible(False)
@@ -115,13 +116,23 @@ class DiagnosePage(QWidget):
         self._thread = self._worker = None
         self.go.setEnabled(True); self.bar.setVisible(False)
 
+    def _print(self) -> None:
+        if self.outcome is None:
+            return
+        from nsd.printing import TextJob
+        from nsd.ui.print_dialog import PrintLayoutDialog
+
+        raw = self.ctx.settings.get("redact_exports")
+        redact = True if raw is None else bool(raw)   # aman: samarkan bila pengaturan tidak ada
+        PrintLayoutDialog(TextJob(build_text(self.outcome, redact), f"Laporan {self.outcome.case_id}"), parent=self).exec()
+
     def _failed(self, msg: str) -> None:
         self._cleanup(); self.status.setText("Pemeriksaan gagal dijalankan."); QMessageBox.critical(self, "Kesalahan", msg)
 
     def _done(self, o) -> None:
         self._cleanup(); self.outcome = o
         self.status.setText(f"Selesai. ID kasus {o.case_id}. Tidak ada perubahan dilakukan pada sistem.")
-        self.export.setEnabled(True); self.cp_id.setEnabled(True)
+        self.export.setEnabled(True); self.print_btn.setEnabled(True); self.cp_id.setEnabled(True)
         self.tree.clear()
         for st, title in _HEAD:
             rows = [c for c in o.checks if c.status is st]
