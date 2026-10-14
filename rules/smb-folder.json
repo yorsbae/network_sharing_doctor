@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "id": "FLD-ACCESS-001",
+      "version": 1,
+      "title": "Akses ke folder ditolak (izin)",
+      "description": "Akses ke folder ditolak (izin)",
+      "explanation": "Server terjangkau dan share ada, tetapi akun yang dipakai tidak punya izin. Akses jaringan ditentukan oleh izin SHARE dan izin NTFS; yang paling ketat yang berlaku. Perbaiki dengan memberi izin minimum yang dibutuhkan kepada akun/grup tertentu.",
+      "symptoms": [
+        "Access is denied"
+      ],
+      "error_codes": [
+        "0x00000005",
+        "0x80070005"
+      ],
+      "conditions": [
+        "smb.unc:fail[category=access_denied]"
+      ],
+      "required_evidence": [
+        "smb.unc"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Di server, periksa tab Sharing > Permissions DAN tab Security (NTFS) untuk akun yang dipakai. Jangan memberi 'Everyone: Full Control' atau menimpa izin secara rekursif."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-NOSHARE-001",
+      "version": 1,
+      "title": "Nama share tidak ada di server",
+      "description": "Nama share tidak ada di server",
+      "explanation": "Server ditemukan dan SMB terjangkau, tetapi nama share tidak dikenal. Kemungkinan salah ketik atau folder belum dibagikan.",
+      "symptoms": [],
+      "error_codes": [
+        "0x80070043"
+      ],
+      "conditions": [
+        "smb.unc:fail[category=bad_net_name]"
+      ],
+      "required_evidence": [
+        "smb.unc"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Konfirmasi nama share yang benar di server (peran Server di aplikasi ini dapat memeriksa daftar share) dan perbaiki jalur UNC."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-NOPATH-001",
+      "version": 1,
+      "title": "Jalur folder tidak ditemukan",
+      "description": "Jalur folder tidak ditemukan",
+      "explanation": "SMB terjangkau, tetapi jalur tidak ditemukan. Bisa berarti nama share salah, subfolder tidak ada, atau share tidak terlihat oleh akun ini.",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "smb.unc:fail[category=not_found]"
+      ],
+      "required_evidence": [
+        "smb.unc"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Periksa ejaan share dan subfolder, lalu pastikan share ada di server."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-LOGON-001",
+      "version": 1,
+      "title": "Autentikasi ke server gagal",
+      "description": "Autentikasi ke server gagal",
+      "explanation": "Server menolak nama pengguna/kata sandi. Aplikasi tidak pernah meminta atau menyimpan kata sandi.",
+      "symptoms": [],
+      "error_codes": [
+        "0x8007052E"
+      ],
+      "conditions": [
+        "smb.unc:fail[category=logon_failure]"
+      ],
+      "required_evidence": [
+        "smb.unc"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Masuk dengan akun yang valid di server (gunakan format SERVER\\\\pengguna untuk akun lokal). Periksa kredensial tersimpan di Windows Credential Manager."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-CRED-001",
+      "version": 1,
+      "title": "Konflik koneksi dengan kredensial lain",
+      "description": "Konflik koneksi dengan kredensial lain",
+      "explanation": "Windows tidak mengizinkan beberapa koneksi ke server yang sama dengan kredensial berbeda dalam satu sesi.",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "smb.unc:fail[category=credential_conflict]"
+      ],
+      "required_evidence": [
+        "smb.unc"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Putuskan koneksi lama ke server tersebut (mis. lewat Windows Explorer atau 'net use') atau keluar-masuk sesi Windows, lalu coba lagi dengan satu kredensial."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-SERVERSHARE-001",
+      "version": 1,
+      "title": "Folder belum dibagikan di komputer ini",
+      "description": "Folder belum dibagikan di komputer ini",
+      "explanation": "Tidak ada share bernama itu di komputer server ini, sehingga client tidak akan bisa mengaksesnya.",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "local.folder_share:fail[category=not_found]"
+      ],
+      "required_evidence": [
+        "local.folder_share"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Buat share untuk folder yang dimaksud lewat properti folder > Sharing, dengan izin minimum bagi akun yang membutuhkan."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    }
+  ]
+}

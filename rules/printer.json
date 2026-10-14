@@ -1,0 +1,482 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "id": "PRN-SPOOLER-001",
+      "version": 1,
+      "title": "Print Spooler berhenti",
+      "description": "Print Spooler berhenti",
+      "explanation": "Tanpa layanan Print Spooler, printer tidak dapat dipasang, dibagikan, atau mencetak.",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "local.svc.spooler:fail"
+      ],
+      "required_evidence": [
+        "local.svc.spooler"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "low",
+      "requires_admin": true,
+      "auto_policy": "auto_if_approved",
+      "actions": [
+        {
+          "operation": "start_service",
+          "service_name": "Spooler"
+        }
+      ],
+      "snapshot_keys": [
+        "service.Spooler.state",
+        "service.Spooler.start_type"
+      ],
+      "verification": [
+        "service_running:Spooler",
+        "repeat_original_printer_test"
+      ],
+      "rollback": {
+        "type": "restore_service_state_if_safe"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-SHARE-001",
+      "version": 1,
+      "title": "Printer ada tetapi belum dibagikan",
+      "description": "Printer ada tetapi belum dibagikan",
+      "explanation": "Printer terpasang di komputer server tetapi tidak dibagikan, sehingga client tidak dapat menyambung.",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "local.printer_share:fail[category=not_shared]"
+      ],
+      "required_evidence": [
+        "local.printer_share"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "medium",
+      "requires_admin": true,
+      "auto_policy": "requires_confirmation",
+      "actions": [
+        {
+          "operation": "share_printer",
+          "printer_name": "$selected_printer",
+          "share_name": "$target_share"
+        }
+      ],
+      "snapshot_keys": [
+        "printer.share_state"
+      ],
+      "verification": [
+        "printer_is_shared",
+        "repeat_original_printer_test"
+      ],
+      "rollback": {
+        "type": "unshare_printer_if_unchanged"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-NOPRN-001",
+      "version": 1,
+      "title": "Tidak ada printer dengan nama share itu di server",
+      "description": "Tidak ada printer dengan nama share itu di server",
+      "explanation": "Printer yang dipilih tidak ada di daftar printer server atau tidak berstatus dibagikan. Risiko salah printer: nama mirip.",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "printer.remote_share:fail[category=not_found]"
+      ],
+      "required_evidence": [
+        "printer.remote_share"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Bandingkan nama share yang Anda masukkan dengan daftar share yang tampil pada detail pemeriksaan, lalu koreksi targetnya."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-ACCESS-001",
+      "version": 1,
+      "title": "Akses ke spooler server ditolak",
+      "description": "Akses ke spooler server ditolak",
+      "explanation": "Server terjangkau, tetapi akun saat ini tidak diizinkan membaca/menyambung ke spooler server.",
+      "symptoms": [],
+      "error_codes": [
+        "0x00000005",
+        "0x80070005"
+      ],
+      "conditions": [
+        "printer.remote_share:fail[category=access_denied]"
+      ],
+      "required_evidence": [
+        "printer.remote_share"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Pastikan akun yang dipakai punya izin 'Print' pada printer share di server (Properti Printer > Security), dan kredensial benar."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-RPC-001",
+      "version": 1,
+      "title": "RPC/Spooler server tidak terjangkau",
+      "description": "RPC/Spooler server tidak terjangkau",
+      "explanation": "Permintaan RPC ke spooler server gagal walau port SMB terbuka. Kemungkinan: spooler di server mati, firewall memblokir RPC, atau kebijakan RPC.",
+      "symptoms": [],
+      "error_codes": [
+        "0x000006BA"
+      ],
+      "conditions": [
+        "printer.remote_share:fail[category=rpc_unavailable]"
+      ],
+      "required_evidence": [
+        "printer.remote_share"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Di server: pastikan Print Spooler berjalan dan aturan firewall 'File and Printer Sharing' (termasuk Spooler Service) aktif."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-11B-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x0000011B saat menyambung ke printer share",
+      "description": "Petunjuk: error 0x0000011B saat menyambung ke printer share",
+      "explanation": "Kode ini umum muncul setelah pembaruan keamanan Windows yang memperketat autentikasi RPC untuk pencetakan; penyebab pastinya bergantung pada build Windows di client dan print server. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [],
+      "error_codes": [
+        "0x0000011B"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "versi/build Windows client dan server",
+        "event RPC/PrintService",
+        "kebijakan keamanan organisasi"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Samakan tingkat pembaruan Windows di client dan print server melalui jalur resmi Microsoft. Jangan menambah override registry yang melemahkan keamanan RPC tanpa persetujuan administrator."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Serahkan ke administrator dengan laporan ini; sertakan build Windows kedua sisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-709-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x00000709 saat operasi printer",
+      "description": "Petunjuk: error 0x00000709 saat operasi printer",
+      "explanation": "Kode ini sering terkait koneksi printer lama/tersimpan atau pengaturan printer default. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [],
+      "error_codes": [
+        "0x00000709"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Periksa koneksi printer yang sudah ada untuk target yang sama dan hapus HANYA koneksi yang tepat setelah Anda yakin; periksa printer default."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-EVENTS-001",
+      "version": 1,
+      "title": "Ada event error pencetakan terbaru",
+      "description": "Ada event error pencetakan terbaru",
+      "explanation": "Log PrintService/Admin berisi error dalam 24 jam terakhir; ID event membantu mempersempit penyebab.",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "local.events.print:warning"
+      ],
+      "required_evidence": [
+        "local.events.print"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Lihat detail event pada laporan atau Event Viewer > Applications and Services Logs > Microsoft > Windows > PrintService > Admin."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "GEN-HINT-001",
+      "version": 1,
+      "title": "Petunjuk: kode akses ditolak (0x00000005 / 0x80070005)",
+      "description": "Petunjuk: kode akses ditolak (0x00000005 / 0x80070005)",
+      "explanation": "Kode ini artinya 'akses ditolak', tetapi tahap dan sumbernya bisa berbeda (izin share, NTFS, spooler, kebijakan). Ini PETUNJUK, bukan diagnosis.",
+      "symptoms": [],
+      "error_codes": [
+        "0x00000005",
+        "0x80070005"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer",
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Jalankan pemeriksaan lengkap dengan nama share terisi agar penyebab dapat dibuktikan."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "GEN-HINT-002",
+      "version": 1,
+      "title": "Petunjuk: jalur jaringan tidak ditemukan (0x80070035 / 0x800704CF)",
+      "description": "Petunjuk: jalur jaringan tidak ditemukan (0x80070035 / 0x800704CF)",
+      "explanation": "Kode ini muncul pada beberapa tahap (nama, jaringan, SMB). Ini PETUNJUK, bukan diagnosis.",
+      "symptoms": [],
+      "error_codes": [
+        "0x80070035",
+        "0x800704CF"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer",
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Jalankan pemeriksaan lengkap; hasil DNS dan port 445 membedakan salah nama, server mati, atau firewall."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "GEN-HINT-003",
+      "version": 1,
+      "title": "Petunjuk: kode 0x00000006 / 0x00000016",
+      "description": "Petunjuk: kode 0x00000006 / 0x00000016",
+      "explanation": "Kode ini bersifat umum (handle tidak valid / perintah tidak dikenali) dan maknanya bergantung pada API dan tahap operasi. Jangan menyimpulkan penyebab dari kode ini saja.",
+      "symptoms": [],
+      "error_codes": [
+        "0x00000006",
+        "0x00000016"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "pesan error lengkap",
+        "tahap saat error muncul (cari printer / tambah / cetak)",
+        "driver printer"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer",
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Catat pesan error lengkap dan langkah yang dilakukan saat muncul, lalu jalankan pemeriksaan lengkap dan bagikan laporan."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    }
+  ]
+}

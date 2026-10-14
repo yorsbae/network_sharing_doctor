@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "id": "SEC-SMB1-001",
+      "version": 1,
+      "title": "SMB1 aktif (tidak aman)",
+      "description": "SMB1 aktif (tidak aman)",
+      "explanation": "Protokol SMB1 sudah usang dan rentan. Aplikasi tidak pernah mengaktifkannya dan tidak mengubahnya otomatis.",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "local.smb_server:warning[smb1=True]"
+      ],
+      "required_evidence": [
+        "local.smb_server"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "server"
+      ],
+      "target_types": [
+        "printer",
+        "folder"
+      ],
+      "risk": "security_sensitive",
+      "requires_admin": false,
+      "auto_policy": "blocked",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Nonaktifkan SMB1 melalui administrator sesuai kebijakan organisasi setelah memastikan tidak ada perangkat lama yang bergantung padanya."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "SEC-GUEST-001",
+      "version": 1,
+      "title": "Logon tamu tidak aman (insecure guest) aktif di klien",
+      "description": "Logon tamu tidak aman (insecure guest) aktif di klien",
+      "explanation": "Pengaturan ini mengizinkan akses SMB tanpa autentikasi. Aplikasi tidak mengubahnya dan tidak akan mengaktifkannya sebagai perbaikan.",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "local.smb_client:warning[insecure_guest=True]"
+      ],
+      "required_evidence": [
+        "local.smb_client"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer",
+        "folder"
+      ],
+      "risk": "security_sensitive",
+      "requires_admin": false,
+      "auto_policy": "blocked",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Tinjau kebutuhan pengaturan ini bersama administrator; lebih baik gunakan akun yang terautentikasi."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    }
+  ]
+}

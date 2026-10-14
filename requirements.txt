@@ -1,0 +1,4 @@
+# Versi MINIMUM. Sebelum rilis, buat requirements-lock.txt dengan versi persis dari mesin build
+# (mis. `pip freeze` / pip-compile) dan verifikasi pada VM Windows bersih (vision.md B.5).
+PySide6>=6.6,<7
+pyinstaller

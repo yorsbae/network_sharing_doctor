@@ -1,0 +1,16 @@
+# Matriks uji & validasi yang masih harus dilakukan di Windows
+
+Semua butir di bawah **belum dijalankan** (sandbox pengembangan tidak punya Windows). Isi kolom hasil saat diuji.
+
+| # | Yang divalidasi | Cara | Windows | Hasil |
+|---|---|---|---|---|
+| 1 | Seluruh skrip di `windows/powershell.py` berjalan & mengeluarkan JSON valid | `tests/integration_windows` | 10 / 11 | — |
+| 2 | ID grup firewall `@FirewallAPI.dll,-32752` = "File and Printer Sharing" (juga di OS non-Inggris) | `test_firewall_group_id_is_valid` | 10 / 11 | — |
+| 3 | Klasifikasi `test_unc`: access denied, share tidak ada, host tidak ada, logon gagal, konflik kredensial | 2 VM, workgroup | 11 | — |
+| 4 | `Get-Printer -ComputerName` pada server nyata: akses ditolak vs RPC tidak tersedia | 2 VM + printer virtual | 11 | — |
+| 5 | Hak non-admin: operasi mana yang gagal (`Get-SmbServerConfiguration`, event log) dan pesannya | akun standar | 11 | — |
+| 6 | Domain vs workgroup, profil Publik/Privat | VM domain | 11 | — |
+| 7 | Windows Server (2019/2022/2025): kompatibilitas cmdlet | VM Server | Server | — |
+| 8 | Kode error (0x11B, 0x709, 0x5, 0x35, 0x43): reproduksi & konfirmasi aturan | lab LAN | 10/11 | — |
+| 9 | Build PyInstaller berjalan di VM bersih tanpa Python, akun standar, jalur non-ASCII | `scripts/build_windows.ps1` | 11 | — |
+| 10 | UI PySide6 dirender dan alur scan→ekspor berfungsi | manual | 11 | — |

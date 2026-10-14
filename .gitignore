@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.egg-info/
+data/
+*.sqlite3
+*.corrupt-*
+nsd.log*
+portable.flag

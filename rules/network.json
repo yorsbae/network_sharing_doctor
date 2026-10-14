@@ -1,0 +1,297 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "id": "NET-NAME-001",
+      "version": 1,
+      "title": "Nama komputer server tidak dapat diresolusikan",
+      "description": "Nama komputer server tidak dapat diresolusikan",
+      "explanation": "Nama server tidak berubah menjadi alamat IP. Penyebab umum: salah ketik, server tidak terdaftar di DNS/NetBIOS, atau perangkat berbeda subnet. Jika koneksi via alamat IP berhasil, masalah ada di resolusi nama, bukan di sharing.",
+      "symptoms": [
+        "Network path not found",
+        "Nama komputer tidak ditemukan"
+      ],
+      "error_codes": [
+        "0x80070035",
+        "0x800704CF"
+      ],
+      "conditions": [
+        "net.dns:fail"
+      ],
+      "required_evidence": [
+        "net.dns"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer",
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Periksa ejaan nama server, lalu coba dengan alamat IP server. Jangan menetapkan IP permanen di file hosts tanpa mendokumentasikannya."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "NET-SMB-001",
+      "version": 1,
+      "title": "Server terjangkau tetapi port SMB (445) tidak dapat dihubungi",
+      "description": "Server terjangkau tetapi port SMB (445) tidak dapat dihubungi",
+      "explanation": "Nama server dikenali, tetapi koneksi ke TCP 445 tidak berhasil. Ping yang berhasil tidak membuktikan SMB berfungsi. Kemungkinan: firewall di server/jaringan memblokir, layanan Server (LanmanServer) di server mati, atau file sharing tidak diaktifkan.",
+      "symptoms": [
+        "Ping berhasil tetapi share tidak bisa dibuka"
+      ],
+      "error_codes": [
+        "0x80070035",
+        "0x800704CF"
+      ],
+      "conditions": [
+        "net.dns:pass",
+        "net.tcp445:fail"
+      ],
+      "required_evidence": [
+        "net.dns",
+        "net.tcp445"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer",
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Di komputer server: pastikan layanan Server berjalan dan aturan firewall File and Printer Sharing aktif pada profil jaringan yang dipakai. Jalankan Network Sharing Doctor di server (peran Server) untuk memeriksa sisi server."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "SVC-WORKSTATION-001",
+      "version": 1,
+      "title": "Layanan Workstation (klien SMB) berhenti",
+      "description": "Layanan Workstation (klien SMB) berhenti",
+      "explanation": "Layanan Workstation dibutuhkan komputer ini untuk mengakses share di jaringan. Jika berhenti, koneksi ke share akan gagal.",
+      "symptoms": [
+        "Tidak bisa mengakses share dari komputer ini"
+      ],
+      "error_codes": [],
+      "conditions": [
+        "local.svc.workstation:fail"
+      ],
+      "required_evidence": [
+        "local.svc.workstation"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer",
+        "folder"
+      ],
+      "risk": "low",
+      "requires_admin": true,
+      "auto_policy": "auto_if_approved",
+      "actions": [
+        {
+          "operation": "start_service",
+          "service_name": "LanmanWorkstation"
+        }
+      ],
+      "snapshot_keys": [
+        "service.LanmanWorkstation.state",
+        "service.LanmanWorkstation.start_type"
+      ],
+      "verification": [
+        "service_running:LanmanWorkstation",
+        "repeat_original_test"
+      ],
+      "rollback": {
+        "type": "restore_service_state_if_safe"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "SVC-SERVER-001",
+      "version": 1,
+      "title": "Layanan Server (berbagi SMB) berhenti di komputer ini",
+      "description": "Layanan Server (berbagi SMB) berhenti di komputer ini",
+      "explanation": "Komputer ini tidak dapat membagikan folder/printer bila layanan Server berhenti.",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "local.svc.server:fail"
+      ],
+      "required_evidence": [
+        "local.svc.server"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "server"
+      ],
+      "target_types": [
+        "printer",
+        "folder"
+      ],
+      "risk": "low",
+      "requires_admin": true,
+      "auto_policy": "auto_if_approved",
+      "actions": [
+        {
+          "operation": "start_service",
+          "service_name": "LanmanServer"
+        }
+      ],
+      "snapshot_keys": [
+        "service.LanmanServer.state",
+        "service.LanmanServer.start_type"
+      ],
+      "verification": [
+        "service_running:LanmanServer",
+        "repeat_original_test"
+      ],
+      "rollback": {
+        "type": "restore_service_state_if_safe"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "NET-PROFILE-001",
+      "version": 1,
+      "title": "Profil jaringan Publik membatasi sharing",
+      "description": "Profil jaringan Publik membatasi sharing",
+      "explanation": "Windows membatasi penemuan jaringan dan file sharing pada profil Publik. Mengubah profil memengaruhi kebijakan firewall komputer ini dan bisa dikunci oleh kebijakan organisasi; lakukan hanya di jaringan tepercaya.",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "local.profile:warning[category=Public]"
+      ],
+      "required_evidence": [
+        "local.profile"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer",
+        "folder"
+      ],
+      "risk": "medium",
+      "requires_admin": true,
+      "auto_policy": "requires_confirmation",
+      "actions": [
+        {
+          "operation": "set_network_profile_private"
+        }
+      ],
+      "snapshot_keys": [
+        "network.profile.category"
+      ],
+      "verification": [
+        "profile_is_private",
+        "repeat_original_test"
+      ],
+      "rollback": {
+        "type": "restore_profile_category"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika perubahan diblokir kebijakan, hubungi administrator jaringan; aplikasi tidak melawan kebijakan.",
+      "references": []
+    },
+    {
+      "id": "FW-SHARING-001",
+      "version": 1,
+      "title": "Aturan firewall File and Printer Sharing nonaktif",
+      "description": "Aturan firewall File and Printer Sharing nonaktif",
+      "explanation": "Semua aturan masuk untuk File and Printer Sharing nonaktif, sehingga komputer lain tidak dapat mengakses share di sini. Perbaikan hanya mengaktifkan grup aturan bawaan Windows itu (bukan mematikan firewall).",
+      "symptoms": [],
+      "error_codes": [],
+      "conditions": [
+        "local.firewall:fail"
+      ],
+      "required_evidence": [
+        "local.firewall"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "server"
+      ],
+      "target_types": [
+        "printer",
+        "folder"
+      ],
+      "risk": "medium",
+      "requires_admin": true,
+      "auto_policy": "requires_confirmation",
+      "actions": [
+        {
+          "operation": "enable_specific_firewall_rule",
+          "group": "file_and_printer_sharing"
+        }
+      ],
+      "snapshot_keys": [
+        "firewall.group.file_and_printer_sharing.enabled_state"
+      ],
+      "verification": [
+        "firewall_rule_enabled",
+        "repeat_original_test"
+      ],
+      "rollback": {
+        "type": "restore_firewall_rule_state"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika memakai firewall pihak ketiga, atur aturannya di sana; aplikasi tidak mengevaluasinya.",
+      "references": []
+    }
+  ]
+}
