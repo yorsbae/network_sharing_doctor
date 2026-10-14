@@ -79,7 +79,7 @@ share tetap melewati server. Tidak ada yang dari ini terbukti pada driver nyata.
 
 ## Bug yang ditemukan tes dan sudah diperbaiki
 - (Kertas) `assess()` awalnya menandai jalur formulir client/antrean lokal *Perlu admin* (dianggap bisa) walau rentang driver tidak diketahui → diperbaiki jadi *Belum diketahui*; tes `test_unknown_caps_never_claimed_available`.
-- (Kertas) nama preset "F4 / Folio" ditolak validator namaku sendiri (`/`) → diganti "F4 (Folio)".
+- (Kertas) nama preset "F4 / Folio" ditolak validator nama pada kode yang sama (`/`) → diganti "F4 (Folio)".
 - (Kertas) logika pengecekan rentang awalnya berbelit dan salah arah → ditulis ulang orientasi-agnostik (sisi pendek vs pendek).
 - Kunci bukti `smb1` (mengandung angka) ditolak regex skema → regex diperbaiki.
 - Nama share mengizinkan `' ; \` & %` dsb. → diperketat (pertahanan berlapis; tidak eksploitabel karena parameter lewat env var).
