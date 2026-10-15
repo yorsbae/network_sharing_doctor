@@ -14,3 +14,9 @@ Semua butir di bawah **belum dijalankan** (sandbox pengembangan tidak punya Wind
 | 8 | Kode error (0x11B, 0x709, 0x5, 0x35, 0x43): reproduksi & konfirmasi aturan | lab LAN | 10/11 | — |
 | 9 | Build PyInstaller berjalan di VM bersih tanpa Python, akun standar, jalur non-ASCII | `scripts/build_windows.ps1` | 11 | — |
 | 10 | UI PySide6 dirender dan alur scan→ekspor berfungsi | manual | 11 | — |
+| 11 | Alur perbaikan nyata PRN-SPOOLER-001 (stop → repair → verifikasi → rollback → pulihkan), hak admin vs non-admin, Spooler Disabled | `NSD_RUN_MUTATING=1`, VM LAB saja, sebagai Administrator | 11 | — |
+| 12 | `repair --confirm` ditolak bila bukan admin / eksekusi nonaktif, tanpa efek samping | CLI di VM | 11 | — |
+| 13 | `nsd autostart install` mode logon-user: tugas terbuat, jalan saat logon, instans tunggal | VM, akun standar | 11 | — |
+| 14 | `autostart install --mode boot-system` dari Program Files: tugas terbuat, `icacls` benar (SID, bukan nama lokal), jalan saat boot tanpa login, akun standar tidak bisa menulis folder data | VM, admin | 11 (juga lokal non-Inggris) | — |
+| 15 | Penolakan mode boot-system dari folder pengguna; `status`/`uninstall` | VM | 11 | — |
+| 16 | Monitor jalan berhari-hari: memori stabil, interval, pemulihan saat jaringan putus | VM lab | 11 | — |

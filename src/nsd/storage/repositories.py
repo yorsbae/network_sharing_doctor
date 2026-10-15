@@ -102,3 +102,52 @@ class AuditRepository:
         if case_id:
             return self.conn.execute("SELECT * FROM audit_events WHERE case_id=? ORDER BY id", (case_id,)).fetchall()
         return self.conn.execute("SELECT * FROM audit_events ORDER BY id").fetchall()
+
+
+class RepairRepository:
+    """Catatan tindakan, snapshot sebelum perubahan, dan hasil verifikasi (Fase 2)."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+
+    def start_action(self, case_id: str, operation: str, params: dict) -> int:
+        with self.conn:
+            cur = self.conn.execute(
+                "INSERT INTO actions(case_id,operation,params_json,started_at) VALUES(?,?,?,?)",
+                (case_id, operation, _dump(params), now_iso()))
+        return int(cur.lastrowid)
+
+    def finish_action(self, action_id: int, success: bool, result_code: int | None = None) -> None:
+        with self.conn:
+            self.conn.execute("UPDATE actions SET ended_at=?, success=?, result_code=? WHERE id=?",
+                              (now_iso(), int(success), result_code, action_id))
+
+    def add_snapshot(self, case_id: str, action_id: int | None, kind: str, payload: dict,
+                     restore_supported: bool) -> int:
+        with self.conn:
+            cur = self.conn.execute(
+                "INSERT INTO snapshots(case_id,action_id,snapshot_type,payload_json,restore_supported) VALUES(?,?,?,?,?)",
+                (case_id, action_id, kind, _dump(payload), int(restore_supported)))
+        return int(cur.lastrowid)
+
+    def link_snapshot(self, snapshot_id: int, action_id: int) -> None:
+        with self.conn:
+            self.conn.execute("UPDATE snapshots SET action_id=? WHERE id=?", (action_id, snapshot_id))
+
+    def snapshot_for_action(self, action_id: int) -> sqlite3.Row | None:
+        return self.conn.execute("SELECT * FROM snapshots WHERE action_id=? ORDER BY id DESC LIMIT 1",
+                                 (action_id,)).fetchone()
+
+    def get_action(self, action_id: int) -> sqlite3.Row | None:
+        return self.conn.execute("SELECT * FROM actions WHERE id=?", (action_id,)).fetchone()
+
+    def add_verification(self, case_id: str, test_id: str, status: str, evidence: dict) -> None:
+        with self.conn:
+            self.conn.execute("INSERT INTO verification_results(case_id,test_id,status,evidence_json) VALUES(?,?,?,?)",
+                              (case_id, test_id, status, _dump(evidence)))
+
+    def verifications(self, case_id: str) -> list[sqlite3.Row]:
+        return self.conn.execute("SELECT * FROM verification_results WHERE case_id=? ORDER BY id", (case_id,)).fetchall()
+
+    def actions(self, case_id: str) -> list[sqlite3.Row]:
+        return self.conn.execute("SELECT * FROM actions WHERE case_id=? ORDER BY id", (case_id,)).fetchall()

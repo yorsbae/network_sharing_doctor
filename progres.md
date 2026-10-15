@@ -1,8 +1,8 @@
 # Progres — Network Sharing Doctor
 
-**Terakhir diperbarui:** 14 Oktober 2026
-**Fase aktif:** Fase 1 — MVP diagnostik baca-saja (lihat `vision.md`, Bagian B §14 dan Bagian C)
-**Versi kode:** 0.1.0 (belum dirilis) · **Tes:** 94 lulus (`unittest`, ~0,4 dtk; 14 di antaranya butuh PySide6 dan dilewati bila tidak ada) · **Aturan:** 25 valid
+**Terakhir diperbarui:** 15 Oktober 2026 (monitor & autostart ditambahkan)
+**Fase aktif:** Fase 1 (menunggu validasi Windows) + Fase 2 sebagian: satu jenis perbaikan, mati secara default
+**Versi kode:** 0.1.0 (belum dirilis) · **Tes:** 104 lulus (`unittest`, ~0,6 dtk) · **Aturan:** 25 valid
 
 ## Legenda
 `[x]` selesai dan lulus tes otomatis · `[~]` ditulis tetapi **belum bisa diuji di lingkungan ini** · `[ ]` belum dikerjakan
@@ -51,85 +51,75 @@
 gagal / lulus / belum diperiksa". → Logikanya terpenuhi dan teruji dengan mock; **belum terbukti di Windows asli**.
 Fase 1 belum boleh dinyatakan selesai sebelum `docs/test-matrix.md` butir 1–6 dan 10 terisi.
 
-## Pekerjaan awal Fase 3 — Kertas & Layout di client (vision A.4.4, A.4.5)
-Dikerjakan lebih awal dari urutan fase karena murni logika lokal dan tidak mengubah sistem apa pun.
-- [x] Model `PaperSize` (mm, divalidasi, disimpan sebagai potret, konversi 1/10 mm untuk DEVMODE dan inci), preset A3/A4/A5/F4 (Folio, 210×330)/Letter/Legal
-- [x] `PageLayout`: orientasi, margin, skala, area isi, peringatan margin lebih kecil dari area tak-tercetak printer
-- [x] `PaperStore`: ukuran buatan pengguna disimpan **lokal di client** (`paper_sizes.json`), tulis atomik, berkas rusak diabaikan dan **tidak ditimpa**, entri buruk dilewati satu per satu
-- [x] `capability.assess()`: menilai 4 jalur (per dokumen, formulir client, antrean lokal, formulir server) dari data driver; data tidak cukup → *Belum diketahui*, tidak pernah diklaim bisa; ukuran di luar rentang driver → *Tidak didukung*
-- [x] CLI: `nsd paper list | add | remove | layout`
-- [~] UI: halaman *Kertas & Layout* (daftar, tambah/hapus, orientasi/margin/skala, pratinjau halaman). **Dirender offscreen di Linux** dan terlihat benar; belum pernah dilihat di Windows
-- [ ] Mengumpulkan kemampuan driver dari Windows (`DeviceCapabilities`: rentang ukuran, dukungan ukuran kustom) → butuh adapter baru + uji di VM Windows
-- [ ] Menerapkan ukuran ke printer (jalur per dokumen, formulir client, antrean lokal) — Fase 2 (executor, snapshot, rollback) harus ada dulu
-- [ ] Pencetakan nyata dari tampilan print layout (Qt `QPrinter`/`QPageSize` kustom) — belum ada; tidak ada tes cetak sampai disetujui (Bagian C #6, #10)
-- [ ] Membuat ukuran terlihat di aplikasi lain (Word/Excel) = formulir Windows, butuh admin
+## Fase 2 — perbaikan terbatas (sebagian)
+- [x] `apply()` terpisah dari `run()`; menolak bila eksekusi nonaktif / bukan admin / operasi di luar `start_service`,`stop_service`; tanpa `-Force`, tanpa ubah tipe startup
+- [x] Eksekutor `start_service`: gerbang kebijakan → baca keadaan awal → **snapshot tersimpan dulu** → terapkan → verifikasi (Running, startup tidak berubah) → audit
+- [x] Hasil jujur: `verified` / `noop` / `failed` / `applied_unverified` (tidak dihitung sukses) / `refused` (tanpa efek samping)
+- [x] Aturan diambil dari berkas aturan, bukan dari DB (DB yang diubah tidak bisa menyisipkan aksi); aturan menengah/tinggi/blocked ditolak gerbang kebijakan
+- [x] Rollback (Running→Stopped bila awalnya Stopped), butuh persetujuan; no-op bila sudah Stopped; ditolak untuk kasus/aksi yang salah
+- [x] Tabel `actions`, `snapshots`, `verification_results` terpakai; CLI `settings`, `repair`, `rollback`; pemindaian ulang setelah perbaikan terverifikasi
+- [~] Tes lab Windows bergerbang `NSD_RUN_MUTATING=1` (`tests/integration_windows`) — ditulis, belum dijalankan
+- [ ] Tombol/alur perbaikan di UI (tombol "Perbaiki Otomatis" masih dinonaktifkan; UI belum pernah dirender)
+- [ ] Snapshot/aksi untuk firewall, profil jaringan, share printer (kini ditolak gerbang kebijakan karena risiko menengah)
+- [ ] Persetujuan interaktif per tindakan di UI (kini lewat `--confirm` di CLI)
 
-**Jawaban atas "apakah bisa mandiri dari server" (rinci di vision A.4.5):** definisi ukuran dan tampilan layout
-**bisa** mandiri. Ukuran itu dipakai printer atau tidak **bergantung driver dan perangkat**, dan pengiriman cetak lewat
-share tetap melewati server. Tidak ada yang dari ini terbukti pada driver nyata.
-
-## Print Layout ala ACCURATE Online — popup saat klik Cetak (vision A.4.5)
-Maksud "AOL" = **ACCURATE Online**: klik Cetak → muncul popup *Print Layout* (printer, kertas, margin, pratinjau) → Cetak.
-- [x] Popup `PrintLayoutDialog`: printer (daftar printer Windows + "Simpan sebagai PDF"), ukuran kertas (bawaan + milik pengguna), tombol **Tambah ukuran…** langsung di popup, orientasi, 4 margin, skala, salinan, **pratinjau langsung per halaman** (◀ ▶)
-- [x] Pratinjau dan hasil cetak memakai **satu jalur gambar** (`printing/render.paint_page`) sehingga pratinjau = hasil
-- [x] Pilihan terakhir (printer, kertas, orientasi, margin, skala) diingat lokal di client (`print_prefs.json`)
-- [x] Tombol **Cetak…** di halaman Diagnosa mencetak laporan (disamarkan sesuai pengaturan); tombol **Cetak halaman uji…** di halaman Kertas & Layout
-- [x] Halaman uji: tepi kertas (garis merah), area isi, penggaris sentimeter, info ukuran/margin → untuk memeriksa dengan penggaris apakah printer menerima ukuran apa adanya
-- [x] **Terbukti lewat PDF:** ukuran halaman keluaran tepat (F4 210×330 → 209,9×329,8 mm; lanskap menukar sisi; 100×150 mm), paginasi teks, skala, pesan galat (tujuan tak ada/printer tak ada/tak bisa ditulis)
-- [x] Konfirmasi sebelum mencetak ke printer fisik; pengaturan tidak valid (mis. margin menghabiskan area isi) menonaktifkan tombol Cetak
-- [~] **Mencetak ke printer fisik Windows belum pernah dijalankan.** Hanya jalur PDF yang teruji. Di sandbox tidak ada printer.
-- [ ] Mengisi `DriverCaps` dari printer asli (rentang ukuran, dukungan kustom) dan menampilkannya di popup — butuh uji Windows
-- [ ] Mendaftarkan ukuran sebagai formulir Windows agar tampil di aplikasi lain (butuh admin, Fase 2)
-- [ ] Cetak dokumen selain teks (mis. PDF/gambar), kop, tabel; header/footer, nomor halaman
+## Monitor & autostart (opsional, permintaan "seperti PaperCut")
+Jawaban desain: sharing tidak butuh NSD berjalan (sudah autostart bawaan Windows). Yang dibuat adalah **monitor baca-saja**, bukan layanan perbaikan.
+- [x] `nsd monitor`: putaran periodik, debounce 2 putaran, `status.json` atomik (ringkasan, tanpa bukti mentah), kasus hanya disimpan saat status berubah, audit `monitor_*`, loop tahan error dengan backoff
+- [x] Adapter monitor tanpa izin mutasi; tes memastikan `apply()` tak pernah dipanggil
+- [x] Kunci satu instans (`monitor.lock`); **diuji sebagai proses nyata di Linux**: instans kedua ditolak (kode 3), SIGTERM berhenti bersih, audit start→baseline→stopped
+- [x] `nsd autostart install|uninstall|status`: mode `logon-user` (default) / `boot-system`; penjagaan: hanya build terpaket, boot-system wajib admin + Program Files, ACL folder data via `icacls` (SID) sebelum tugas dibuat, argumen daftar tanpa shell — *logika diuji dengan runner palsu*
+- [~] `schtasks`/`icacls` sebenarnya, memicu saat boot/logon, ACL efektif — **belum diuji di Windows** (test-matrix #13–16)
+- [ ] Notifikasi (toast/email) saat status memburuk; sengaja belum ada (menjalankan perintah/jaringan keluar menambah permukaan serangan)
+- [ ] Halaman status monitor di UI; layanan Windows Service sejati (pywin32/NSSM) — belum diputuskan perlu
 
 ## Belum terbukti (jangan dipercaya sebelum diuji di Windows)
+0. Perilaku `Start-Service`/`Stop-Service` nyata (layanan dependen, timeout 45 dtk, pesan error, hak admin) — seluruh alur Fase 2 baru diuji dengan adapter palsu.
 1. Semua skrip PowerShell di `windows/powershell.py` belum pernah dijalankan di Windows (hanya jalur penolakan & mock).
 2. ID grup firewall `@FirewallAPI.dll,-32752` berasal dari ingatan; bila salah → hasil kosong → *Belum diperiksa* (tidak menyesatkan, tetapi tidak berguna).
 3. Klasifikasi error UNC (HRESULT/tipe exception/pesan Inggris) belum dicocokkan dengan perilaku Windows nyata; pesan di OS berbahasa lain mungkin tidak cocok (jatuh ke kategori `other`).
 4. Pemetaan kode error → petunjuk (0x11B, 0x709, dst.) berasal dari pengetahuan umum, belum direproduksi (vision B §8).
-5. UI hanya pernah dirender offscreen di Linux; tampilan di Windows (font, DPI, tema gelap) belum dilihat.
-6. Seluruh penilaian jalur kertas (`capability.py`) berdasarkan pengetahuan umum tentang DEVMODE/formulir Windows, belum diuji dengan driver nyata. Khususnya: apakah sambungan printer share memakai formulir lokal client atau daftar formulir server.
-7. Perilaku driver V4 vs V3 terhadap ukuran kustom belum diperiksa.
-8. **Cetak ke printer fisik** lewat `QPrinter`: apakah `QPageSize` kustom dipetakan Qt ke ukuran kertas kustom (DEVMODE) yang diterima driver tertentu, apakah `setFullPage(True)` + margin sendiri benar di Windows, dan apakah printer menolak/memotong ukuran 210×330 — **semuanya belum diuji**. Halaman uji ada untuk memeriksanya.
-9. Font "Courier New" untuk laporan teks dipakai dengan fallback monospace; tampilan di Windows belum dilihat.
-10. Pola `lambda` yang menangkap `self` pada sinyal (dipakai di `diagnose_page.py` dan `main_window.py` yang sudah ada) memicu korupsi memori di dialog baru sampai diganti slot biasa (lihat bug). Halaman lama belum diaudit untuk pola serupa.
+5. UI belum pernah tampil.
 
-## Bug yang ditemukan tes dan sudah diperbaiki
-- (Print) **Korupsi memori / segfault saat keluar** (`malloc(): unaligned fastbin chunk`) pada `PrintLayoutDialog`: ditemukan karena kode keluar tes bukan 0 walau semua tes "OK". Bisect otomatis (hapus satu baris konstruktor per percobaan) menunjuk dua tombol halaman yang disambung dengan `lambda` yang menangkap `self`; diganti slot biasa (`_prev_page`/`_next_page`), 5/5 keluar bersih. Label tanpa induk di grid margin juga diberi induk eksplisit.
-- (Print) Tombol **Cetak…** di halaman Diagnosa memanggil `settings.get(key, default)` padahal API hanya menerima `get(key)` → `TypeError`. Ditemukan lewat uji alur utuh (scan → Cetak → popup → PDF), bukan oleh tes unit; kini ada tes regresi.
-- (Kertas) `assess()` awalnya menandai jalur formulir client/antrean lokal *Perlu admin* (dianggap bisa) walau rentang driver tidak diketahui → diperbaiki jadi *Belum diketahui*; tes `test_unknown_caps_never_claimed_available`.
-- (Kertas) nama preset "F4 / Folio" ditolak validator nama pada kode yang sama (`/`) → diganti "F4 (Folio)".
-- (Kertas) logika pengecekan rentang awalnya berbelit dan salah arah → ditulis ulang orientasi-agnostik (sisi pendek vs pendek).
+## Bug yang ditemukan tes/kerja dan sudah diperbaiki
+- (Fase 2) Edit saya pada `powershell.py` memotong dari baris `def run` milik Protocol, bukan kelas nyata, sehingga file rusak; terdeteksi karena jumlah tes turun 59→46. File ditulis ulang utuh; 59 tes asli kembali lulus sebelum melanjutkan.
 - Kunci bukti `smb1` (mengandung angka) ditolak regex skema → regex diperbaiki.
 - Nama share mengizinkan `' ; \` & %` dsb. → diperketat (pertahanan berlapis; tidak eksploitabel karena parameter lewat env var).
 - `result(..., status=...)` bentrok dengan parameter `status` → pemeriksaan printer diam-diam jadi *internal error* → parameter dijadikan posisional-saja, kunci bukti diganti `printer_status`.
 
 ## Keputusan yang saya ambil sendiri (perlu persetujuan Anda)
-0. "AOL" = ACCURATE Online (klik Cetak → popup Print Layout). Popup ini dibuat mengikuti alur itu; kemiripan tampilan persisnya dengan ACCURATE tidak diketahui (belum ada tangkapan layar acuan).
 1. Fase 1 **tanpa penemuan otomatis** dan **tanpa tes cetak** (Bagian C #5, #6).
 2. Nama share dengan `& % ' ; ( ) [ ] { } ~ # @ , = + ^ !` ditolak (mis. "R&D" tidak didukung). Trade-off keamanan; bisa dilonggarkan.
-3. UI baru 5 dari 8 menu di visi (Beranda, Diagnosa, Kertas & Layout, Riwayat, Pengaturan). Mode Server/Client sebagai halaman terpisah, "Printer dan Ukuran Kertas", dan "Folder Sharing" menunggu Fase 3–4.
+3. UI baru 4 dari 8 menu di visi (Beranda, Diagnosa, Riwayat, Pengaturan). Mode Server/Client sebagai halaman terpisah, "Printer dan Ukuran Kertas", dan "Folder Sharing" menunggu Fase 3–4.
 4. Tombol "Perbaiki Otomatis" ada tetapi **dinonaktifkan** dengan penjelasan (Fase 1 baca-saja).
 5. Tes memakai `unittest` (stdlib) karena pytest tidak tersedia; tetap kompatibel pytest.
 6. Riwayat lokal menyimpan target apa adanya; penyamaran hanya pada ekspor (lihat SECURITY.md).
 
 ## Belum dikerjakan dari visi (sesuai urutan fase)
 - Pemilihan printer di server via Registry + validasi ke printer Windows asli (A.4.3) — Fase 3
-- Ukuran kertas khusus di client: daftar/layout/penilaian sudah ada (lihat atas); pengumpulan kemampuan driver, penerapan ke printer, dan cetak nyata — Fase 3/4
+- Ukuran kertas khusus di client, mis. 210×330 mm (A.4.4) — Fase 3/4
 - Penemuan server otomatis (A.4.2) — Fase 3
-- Eksekutor perbaikan, UAC, snapshot, verifikasi ulang, rollback (B §11) — Fase 2
+- Eksekutor untuk operasi selain `start_service`; elevasi UAC mandiri (kini pengguna harus menjalankan sebagai admin) — Fase 2 lanjutan
 - Izin share vs NTFS secara terpisah (A.5.6) — Fase 3
 - Penandatanganan aturan/rilis, helper elevasi terbatas — Fase 6
 
 ## Langkah berikutnya (urutan disarankan)
-0. **Coba cetak nyata di Windows:** buka Kertas & Layout → *Cetak halaman uji…* → pilih printer → ukuran F4 Kantor 210×330 → cetak, lalu ukur dengan penggaris. Catat hasil per driver di `docs/test-matrix.md`.
 1. Jalankan `tests/integration_windows` di VM Windows 11, isi `docs/test-matrix.md`, perbaiki skrip/ID yang meleset.
-2. Render UI di Windows (termasuk halaman Kertas & Layout); perbaiki masalah tata letak.
-2b. Tulis adapter baca-saja `DeviceCapabilities` untuk mengisi `DriverCaps`, uji dengan 2–3 driver nyata (mis. printer laser A4 dan printer dot-matrix/nota) di VM + printer fisik.
+2. Render UI di Windows; perbaiki masalah tata letak.
 3. Reproduksi 3–4 kegagalan nyata (445 diblokir, akses ditolak, Spooler mati, share printer salah) dan simpan sebagai fixture.
-4. Baru masuk Fase 2: executor + snapshot + verifikasi untuk **satu** aturan (`PRN-SPOOLER-001`), diuji di VM.
+4. Jalankan `NSD_RUN_MUTATING=1` di VM lab untuk membuktikan alur `PRN-SPOOLER-001` pada Windows asli (butir #11 di test-matrix). Baru setelah itu perluas ke firewall/profil jaringan/share printer, dan hubungkan ke UI.
+
+## Keputusan tambahan (Fase 2, perlu persetujuan Anda)
+7. Perbaikan **mati secara default** dan butuh tiga hal sekaligus: `execution_enabled`, `--confirm`, dan administrator. Level kebijakan tetap terkunci "Diagnosis saja" untuk scan.
+8. Hanya satu aksi per perbaikan dan hanya risiko `low`; layanan `Disabled` dilaporkan, bukan "diperbaiki" (ubah startup = keputusan administrator).
+9. Rollback hanya untuk `start_service` dengan keadaan awal Stopped.
+
+## Keputusan tambahan (monitor, perlu persetujuan Anda)
+10. Autostart lewat **Task Scheduler**, bukan Windows Service: tanpa dependensi tambahan, mudah dihapus. Konsekuensi: tidak ada pemulihan otomatis bila proses mati (Task Scheduler tidak memulai ulang proses yang crash secara default).
+11. Mode `boot-system` ditolak dari lokasi yang bisa ditulis pengguna (kecuali `--i-understand-risk`) untuk mencegah eskalasi hak akses.
+12. Monitor **tidak** melakukan perbaikan otomatis walau `execution_enabled=true`.
 
 ## Log perubahan
-- 2026-10-14 (sesi 3) — Popup Print Layout (ala ACCURATE), lapisan cetak `nsd.printing` (pratinjau = hasil), cetak laporan dari Diagnosa, halaman uji, preferensi cetak lokal; dua bug (korupsi memori dialog, `settings.get`) ditemukan & diperbaiki; 94 tes. Cetak ke PDF terbukti; printer fisik belum.
-- 2026-10-14 (sesi 2) — Modul `nsd.paper` (model, layout, store lokal, penilaian jalur), CLI `nsd paper`, halaman UI *Kertas & Layout*, vision A.4.5 + Bagian C #9–11; 82 tes. UI dirender offscreen (bukan Windows).
 - 2026-10-14 — Perapian `vision.md`; kerangka proyek; fondasi keselamatan; adapter Windows; mesin diagnostik; mesin aturan + 25 aturan; SQLite; laporan; CLI; UI PySide6; 59 tes; dokumen pendukung.
+- 2026-10-15 — Fase 2 (sebagian): `apply()` bergerbang, `RepairExecutor` (snapshot→terapkan→verifikasi→rollback→audit), CLI `settings/repair/rollback`, rescan; 28 tes baru (total 87).
+- 2026-10-15 — Monitor latar belakang + autostart Task Scheduler; `ScanService.save()` dipisah dari `run(persist=)`; 17 tes baru (total 104); uji proses nyata (kunci instans, SIGTERM).

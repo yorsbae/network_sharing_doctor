@@ -15,14 +15,15 @@ class PolicyLevel(IntEnum):
 EXECUTION_AVAILABLE = False  # diubah hanya ketika executor + snapshot + verifikasi (Fase 2) teruji
 
 
-def decide(finding: Finding, level: PolicyLevel) -> tuple[str, str]:
+def decide(finding: Finding, level: PolicyLevel, execution_available: bool | None = None) -> tuple[str, str]:
     """Kembalikan (kode, teks Indonesia) keputusan untuk satu temuan."""
     mutating = any(a.get("operation") != "advise" for a in finding.actions)
     if finding.auto_policy == "blocked" or finding.risk in ("high", "security_sensitive"):
         return "blocked", "Diblokir oleh kebijakan keselamatan; hanya penjelasan dan langkah manual."
     if not mutating or finding.auto_policy == "always_read_only":
         return "read_only", "Hanya saran/penjelasan; tidak ada perubahan sistem."
-    if not EXECUTION_AVAILABLE:
+    avail = EXECUTION_AVAILABLE if execution_available is None else execution_available
+    if not avail:
         return "suggest_only", "Disarankan saja. Fase 1 bersifat baca-saja: tidak ada perubahan yang diterapkan."
     if level is PolicyLevel.DIAGNOSE_ONLY:
         return "suggest_only", "Level kebijakan 'Diagnosis saja': perbaikan tidak dijalankan."

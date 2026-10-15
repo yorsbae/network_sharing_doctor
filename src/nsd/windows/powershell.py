@@ -1,4 +1,4 @@
-"""Adapter Windows: operasi BACA-SAJA bertipe lewat PowerShell.
+"""Adapter Windows: operasi bertipe lewat PowerShell.
 
 Aturan keamanan:
 * Skrip adalah konstanta di bawah ini; tidak ada skrip dari input pengguna/aturan.
@@ -6,6 +6,8 @@ Aturan keamanan:
   NSD_P_*, tidak pernah disisipkan ke teks skrip.
 * subprocess dengan daftar argumen, tanpa shell=True, dengan timeout dan batas output.
 * Path powershell.exe eksplisit di System32 (bukan dari PATH).
+* `run()` hanya mengenal operasi BACA-SAJA. Operasi pengubah hanya lewat `apply()`,
+  yang menolak kecuali `allow_mutation=True` dan proses berjalan sebagai administrator.
 """
 from __future__ import annotations
 
@@ -43,6 +45,7 @@ class OpResult:
 
 class WindowsAdapter(Protocol):
     def run(self, operation: str, **params: str) -> OpResult: ...
+    def apply(self, operation: str, **params: str) -> OpResult: ...
     def is_windows(self) -> bool: ...
     def is_elevated(self) -> bool: ...
 
@@ -59,6 +62,12 @@ _PRINTER_PROJ = (
     "Shared=[bool]$_.Shared;ShareName=$_.ShareName;Status=$_.PrinterStatus.ToString()} }"
 )
 
+_SVC_STATE = (
+    "$s=Get-Service -Name $env:NSD_P_SERVICE; "
+    "[pscustomobject]@{Name=$s.Name;Status=$s.Status.ToString();StartType=$s.StartType.ToString()} "
+    "| ConvertTo-Json -Compress"
+)
+
 READ_OPERATIONS: dict[str, ReadOp] = {
     "os_info": ReadOp(
         "$os=Get-CimInstance Win32_OperatingSystem; $cs=Get-CimInstance Win32_ComputerSystem; "
@@ -66,12 +75,7 @@ READ_OPERATIONS: dict[str, ReadOp] = {
         "ComputerName=$cs.Name;PartOfDomain=[bool]$cs.PartOfDomain;Domain=$cs.Domain} "
         "| ConvertTo-Json -Compress"
     ),
-    "get_service": ReadOp(
-        "$s=Get-Service -Name $env:NSD_P_SERVICE; "
-        "[pscustomobject]@{Name=$s.Name;Status=$s.Status.ToString();StartType=$s.StartType.ToString()} "
-        "| ConvertTo-Json -Compress",
-        {"service": validate_service},
-    ),
+    "get_service": ReadOp(_SVC_STATE, {"service": validate_service}),
     "net_profile": ReadOp(
         "@(Get-NetConnectionProfile | ForEach-Object { [pscustomobject]@{"
         "Category=$_.NetworkCategory.ToString();IPv4=$_.IPv4Connectivity.ToString()} }) "
@@ -120,6 +124,17 @@ READ_OPERATIONS: dict[str, ReadOp] = {
     ),
 }
 
+# Operasi PENGUBAH (Fase 2). Tanpa -Force: layanan dependen tidak dihentikan paksa.
+# Tipe startup TIDAK pernah diubah.
+MUTATING_OPERATIONS: dict[str, ReadOp] = {
+    "start_service": ReadOp(
+        "Start-Service -Name $env:NSD_P_SERVICE -ErrorAction Stop; " + _SVC_STATE,
+        {"service": validate_service}, timeout=45),
+    "stop_service": ReadOp(
+        "Stop-Service -Name $env:NSD_P_SERVICE -ErrorAction Stop; " + _SVC_STATE,
+        {"service": validate_service}, timeout=45),
+}
+
 
 def _powershell_exe() -> str:
     root = os.environ.get("SystemRoot", r"C:\Windows")
@@ -127,10 +142,9 @@ def _powershell_exe() -> str:
 
 
 class RealWindowsAdapter:
-    """Menjalankan operasi baca-saja. Operasi pengubah belum ada di Fase 1."""
-
-    def __init__(self, platform: str | None = None) -> None:
+    def __init__(self, platform: str | None = None, allow_mutation: bool = False) -> None:
         self._platform = platform or sys.platform
+        self.allow_mutation = allow_mutation
 
     def is_windows(self) -> bool:
         return self._platform == "win32"
@@ -139,12 +153,28 @@ class RealWindowsAdapter:
         return is_elevated()
 
     def run(self, operation: str, **params: str) -> OpResult:
+        """Hanya operasi BACA-SAJA."""
         spec = READ_OPERATIONS.get(operation)
         if spec is None:
             return OpResult(False, error=f"Operasi tidak diizinkan: {operation}", unsupported=True)
+        return self._execute(operation, spec, params)
+
+    def apply(self, operation: str, **params: str) -> OpResult:
+        """Operasi PENGUBAH. Ditolak kecuali eksekusi diaktifkan dan proses elevated."""
+        spec = MUTATING_OPERATIONS.get(operation)
+        if spec is None:
+            return OpResult(False, error=f"Operasi pengubah tidak diizinkan: {operation}", unsupported=True)
+        if not self.allow_mutation:
+            return OpResult(False, error="Eksekusi perubahan dinonaktifkan.", unsupported=True)
+        if not self.is_windows():
+            return OpResult(False, error="Hanya tersedia di Windows.", unsupported=True)
+        if not self.is_elevated():
+            return OpResult(False, error="Butuh hak administrator.", unsupported=True)
+        return self._execute(operation, spec, params)
+
+    def _execute(self, operation: str, spec: ReadOp, params: dict) -> OpResult:
         if not self.is_windows():
             return OpResult(False, error="Pemeriksaan ini hanya tersedia di Windows.", unsupported=True)
-
         unknown = set(params) - set(spec.params)
         if unknown:
             raise ValidationError(f"Parameter tidak dikenal untuk {operation}: {sorted(unknown)}")

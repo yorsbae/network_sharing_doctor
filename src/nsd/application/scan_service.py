@@ -53,7 +53,8 @@ class ScanService:
         self.net, self.level = net or NetProbe(), level
         self.local_names = local_names
 
-    def run(self, request: ScanRequest, progress: Callable[[int, int, str], None] | None = None) -> ScanOutcome:
+    def run(self, request: ScanRequest, progress: Callable[[int, int, str], None] | None = None,
+            persist: bool = True) -> ScanOutcome:
         elevated = self.adapter.is_elevated()
         ctx = DiagContext(request=request, adapter=self.adapter, net=self.net)
         if self.local_names:
@@ -63,20 +64,26 @@ class ScanService:
         findings = match_rules(self.rules.rules, ctx.results, request)
         apply_policy(findings, self.level)
 
-        target = request.host + (("\\" + request.share) if request.share else "")
-        case_id = "-"
-        if self.cases:
-            os_sum = (ctx.os_info or {}).get("Caption", "") if ctx.os_info else ""
-            case_id = self.cases.create_case(request.role.value, request.target_type.value, target,
-                                             request.error_code, str(os_sum), elevated, self.rules.digest)
-        outcome = ScanOutcome(case_id, request, started, checks, findings, ctx.os_info, elevated,
+        outcome = ScanOutcome("-", request, started, checks, findings, ctx.os_info, elevated,
                               ctx.sensitive, list(self.rules.errors), self.rules.digest)
-        if self.cases:
-            self.cases.finish_case(case_id, outcome.overall, checks, findings)
+        if persist:
+            self.save(outcome)
+        return outcome
+
+    def save(self, outcome: ScanOutcome) -> ScanOutcome:
+        """Simpan hasil sebagai kasus (dipisah agar monitor hanya menyimpan saat ada perubahan)."""
+        if not self.cases:
+            return outcome
+        req = outcome.request
+        target = req.host + (("\\" + req.share) if req.share else "")
+        os_sum = str((outcome.os_info or {}).get("Caption", ""))
+        outcome.case_id = self.cases.create_case(req.role.value, req.target_type.value, target,
+                                                 req.error_code, os_sum, outcome.elevated, self.rules.digest)
+        self.cases.finish_case(outcome.case_id, outcome.overall, outcome.checks, outcome.findings)
         if self.audit:
-            self.audit.log("scan_completed", case_id, elevated, policy_decision="read_only",
-                           checks=len(checks), findings=len(findings), rule_errors=len(self.rules.errors),
-                           rules_digest=self.rules.digest[:16])
+            self.audit.log("scan_completed", outcome.case_id, outcome.elevated, policy_decision="read_only",
+                           checks=len(outcome.checks), findings=len(outcome.findings),
+                           rule_errors=len(self.rules.errors), rules_digest=self.rules.digest[:16])
             for e in self.rules.errors:
-                self.audit.log("rule_rejected", case_id, elevated, detail=e)
+                self.audit.log("rule_rejected", outcome.case_id, outcome.elevated, detail=e)
         return outcome

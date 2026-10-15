@@ -29,20 +29,31 @@ def _build_parser() -> argparse.ArgumentParser:
     h.add_argument("--limit", type=int, default=20)
     sub.add_parser("rules-validate", help="Validasi berkas aturan")
     sub.add_parser("clear-history", help="Hapus seluruh riwayat kasus")
-    pp = sub.add_parser("paper", help="Ukuran kertas khusus di client (lokal, tanpa server)")
-    ps = pp.add_subparsers(dest="paper_cmd", required=True)
-    ps.add_parser("list", help="Daftar ukuran bawaan + milik pengguna")
-    pa = ps.add_parser("add", help="Tambah ukuran khusus")
-    pa.add_argument("--name", required=True)
-    pa.add_argument("--width", type=float, required=True, help="mm")
-    pa.add_argument("--height", type=float, required=True, help="mm")
-    pr = ps.add_parser("remove", help="Hapus ukuran khusus")
-    pr.add_argument("--name", required=True)
-    pl = ps.add_parser("layout", help="Hitung tata letak halaman")
-    pl.add_argument("--paper", required=True)
-    pl.add_argument("--landscape", action="store_true")
-    pl.add_argument("--margin", type=float, default=10.0, help="mm, semua sisi")
-    pl.add_argument("--scale", type=float, default=100.0)
+    st = sub.add_parser("settings", help="Lihat/ubah pengaturan")
+    st.add_argument("--set", dest="assign", metavar="KUNCI=NILAI(JSON)", help="mis. execution_enabled=true")
+    r = sub.add_parser("repair", help="[Fase 2] Terapkan perbaikan yang disarankan pada sebuah kasus")
+    r.add_argument("--case", required=True); r.add_argument("--rule", required=True)
+    r.add_argument("--confirm", action="store_true", help="Persetujuan eksplisit. Tanpa ini hanya menampilkan rencana.")
+    m = sub.add_parser("monitor", help="Monitor latar belakang BACA-SAJA (status.json + log perubahan)")
+    m.add_argument("--role", choices=["client", "server"], default="server")
+    m.add_argument("--type", dest="ttype", choices=["printer", "folder", "both"], default="both")
+    m.add_argument("--host", default="localhost")
+    m.add_argument("--share", default="")
+    m.add_argument("--interval", type=int, default=300, help="detik antar pemeriksaan (30–86400)")
+    m.add_argument("--data-dir", type=Path, help="folder data (mis. untuk mode SYSTEM)")
+    m.add_argument("--once", action="store_true", help="satu putaran lalu keluar")
+    m.add_argument("--status", action="store_true", help="tampilkan status.json terakhir")
+    au = sub.add_parser("autostart", help="Pasang/hapus autostart monitor (Task Scheduler)")
+    au.add_argument("action", choices=["install", "uninstall", "status"])
+    au.add_argument("--mode", choices=["logon-user", "boot-system"], default="logon-user")
+    au.add_argument("--type", dest="ttype", choices=["printer", "folder", "both"], default="both")
+    au.add_argument("--host", default="localhost")
+    au.add_argument("--share", default="")
+    au.add_argument("--interval", type=int, default=300)
+    au.add_argument("--i-understand-risk", action="store_true", help="Lewati penjagaan lokasi file (TIDAK disarankan)")
+    rb = sub.add_parser("rollback", help="[Fase 2] Pulihkan keadaan sebelum perbaikan")
+    rb.add_argument("--case", required=True); rb.add_argument("--action", type=int, required=True)
+    rb.add_argument("--confirm", action="store_true")
     return p
 
 
@@ -98,39 +109,137 @@ def _cmd_clear(_: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_paper(a: argparse.Namespace) -> int:
-    from nsd.app_config import data_dir
-    from nsd.paper import Margins, Orientation, PageLayout, PaperError, PaperStore
+def _cmd_settings(a: argparse.Namespace) -> int:
+    import json
 
-    store = PaperStore(data_dir())
-    try:
-        if a.paper_cmd == "list":
-            custom = {p.name for p in store.custom()}
-            for p in store.all():
-                print(f"{'khusus' if p.name in custom else 'bawaan':7} {p.label()}")
-            for w in store.load_errors:
-                print("PERINGATAN:", w, file=sys.stderr)
-        elif a.paper_cmd == "add":
-            p = store.add(a.name, a.width, a.height)
-            print(f"Ditambahkan (lokal di client): {p.label()}")
-        elif a.paper_cmd == "remove":
-            ok = store.remove(a.name)
-            print("Dihapus." if ok else "Tidak ditemukan.")
-            return 0 if ok else 1
-        else:
-            paper = next((p for p in store.all() if p.name.lower() == a.paper.strip().lower()), None)
-            if paper is None:
-                raise PaperError(f"Ukuran '{a.paper}' tidak ada.")
-            m = a.margin
-            lay = PageLayout(paper, Orientation.LANDSCAPE if a.landscape else Orientation.PORTRAIT,
-                             Margins(m, m, m, m), a.scale)
-            w, h = lay.page_mm
-            print(f"{paper.label()} {'lanskap' if a.landscape else 'potret'}: halaman {w:g}×{h:g} mm, "
-                  f"area isi {lay.content_width_mm:g}×{lay.content_height_mm:g} mm, skala {a.scale:g}%")
-    except PaperError as exc:
-        print(f"Input tidak valid: {exc}", file=sys.stderr)
-        return 2
+    from nsd.app_config import DEFAULT_SETTINGS
+    from nsd.bootstrap import bootstrap
+
+    ctx = bootstrap()
+    if a.assign:
+        key, _, raw = a.assign.partition("=")
+        if key not in DEFAULT_SETTINGS or key == "policy_level":
+            print(f"Pengaturan tidak dikenal/terkunci: {key}", file=sys.stderr)
+            return 2
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError:
+            print("Nilai harus JSON (mis. true, 30, \"client\").", file=sys.stderr)
+            return 2
+        ctx.settings.set(key, value)
+        ctx.audit.log("setting_changed", key=key, value=value)
+        if key == "execution_enabled" and value:
+            print("PERINGATAN: eksekusi perbaikan diaktifkan. Perubahan tetap butuh --confirm, hak administrator, dan snapshot.")
+    for k in DEFAULT_SETTINGS:
+        print(f"{k} = {json.dumps(ctx.settings.get(k))}")
     return 0
+
+
+def _rescan(ctx, case_row, rule_id: str) -> None:
+    from nsd.models import Role, ScanRequest, TargetType
+
+    host, _, share = case_row["target"].partition("\\")
+    req = ScanRequest(Role(case_row["role"]), TargetType(case_row["target_type"]), host, share, case_row["error_code"] or "")
+    out = ctx.scan_service().run(req)
+    still = rule_id in [f.rule_id for f in out.findings]
+    print(f"\nPemindaian ulang (kasus {out.case_id}): " +
+          ("masalah awal MASIH terdeteksi." if still else "masalah awal tidak lagi terdeteksi oleh aturan ini."))
+    print("Uji koneksi sebenarnya (buka share/tambah printer) tetap diperlukan untuk memastikan.")
+
+
+def _cmd_repair(a: argparse.Namespace) -> int:
+    from nsd.bootstrap import bootstrap
+    from nsd.repairs.executor import finding_for_rule
+    from nsd.rules.loader import load_rules
+
+    ctx = bootstrap()
+    row = next((r for r in ctx.cases.list_cases(500) if r["id"] == a.case), None)
+    plan = next((p for p in ctx.cases.get_plans(a.case) if p["rule_id"] == a.rule), None)
+    if row is None or plan is None:
+        print("Kasus atau aturan tidak ditemukan pada riwayat; jalankan 'scan' terlebih dahulu.", file=sys.stderr)
+        return 2
+    rs = load_rules()
+    finding = finding_for_rule(rs.rules, a.rule)
+    if finding is None or finding.version != plan["rule_version"]:
+        print("Aturan tidak ada/versinya berubah sejak scan; jalankan scan ulang.", file=sys.stderr)
+        return 2
+    print(f"Rencana: {finding.title}")
+    for act in finding.actions:
+        print("  - " + (act["text"] if act["operation"] == "advise" else f"{act['operation']} {({k: v for k, v in act.items() if k != 'operation'})}"))
+    print(f"  Risiko: {finding.risk}; butuh admin: {'ya' if finding.requires_admin else 'tidak'}; rollback: {finding.rollback.get('type')}")
+    if not a.confirm:
+        print("\nBelum ada perubahan. Tambahkan --confirm untuk menyetujui.")
+        return 0
+    res = ctx.repair_executor().execute(finding, a.case, approved=True)
+    for line in res.steps:
+        print("  • " + line)
+    print(f"Hasil: {res.outcome} — {res.message}")
+    if res.rollback_available:
+        print(f"Untuk memulihkan: nsd rollback --case {a.case} --action {res.action_id} --confirm")
+    if res.outcome == "verified":
+        _rescan(ctx, row, a.rule)
+    return 0 if res.success else 1
+
+
+def _cmd_rollback(a: argparse.Namespace) -> int:
+    from nsd.bootstrap import bootstrap
+
+    ctx = bootstrap()
+    res = ctx.repair_executor().rollback(a.case, a.action, approved=a.confirm)
+    print(f"Hasil: {res.outcome} — {res.message}")
+    return 0 if res.success else 1
+
+
+def _cmd_monitor(a: argparse.Namespace) -> int:
+    import json
+    import signal
+    import threading
+
+    from nsd.application.monitor_service import MonitorService, SingleInstance
+    from nsd.application.scan_service import ScanService
+    from nsd.bootstrap import bootstrap
+    from nsd.windows.powershell import RealWindowsAdapter
+
+    ctx = bootstrap(a.data_dir)
+    if a.status:
+        f = ctx.data_dir / "status.json"
+        print(f.read_text(encoding="utf-8") if f.exists() else "Belum ada status.json (monitor belum pernah berjalan).")
+        return 0
+    req = ScanRequest(Role(a.role), TargetType(a.ttype), a.host, a.share, "")
+    lock = SingleInstance(ctx.data_dir / "monitor.lock")
+    if not lock.acquire():
+        print("Monitor sudah berjalan pada folder data ini.", file=sys.stderr)
+        return 3
+    try:
+        # Adapter TANPA izin mutasi, apa pun isi pengaturan: monitor tidak pernah memperbaiki apa pun.
+        svc = ScanService(RealWindowsAdapter(), ctx.cases, ctx.audit)
+        mon = MonitorService(svc, req, ctx.data_dir, ctx.audit, interval=a.interval)
+        if a.once:
+            st = mon.tick()
+            print(json.dumps({"overall": st.overall, "problems": list(st.sig), "case_id": st.case_id}, ensure_ascii=False))
+            return 0 if not st.sig else 1
+        stop = threading.Event()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(sig, lambda *_: stop.set())
+        mon.run_forever(stop)
+        return 0
+    finally:
+        lock.release()
+
+
+def _cmd_autostart(a: argparse.Namespace) -> int:
+    from nsd.application import autostart
+    from nsd.windows.privilege import is_elevated
+
+    if a.action == "install":
+        res = autostart.install(a.mode, host=a.host, share=a.share, target_type=a.ttype, interval=a.interval,
+                                elevated=is_elevated(), i_understand_risk=a.i_understand_risk)
+    elif a.action == "uninstall":
+        res = autostart.uninstall()
+    else:
+        res = autostart.status()
+    print(res.message)
+    return 0 if res.ok else 1
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -142,8 +251,9 @@ def main(argv: list[str] | None = None) -> int:
             return run_gui()
         return {"scan": _cmd_scan, "history": _cmd_history,
                 "rules-validate": _cmd_rules_validate, "clear-history": _cmd_clear,
-                "paper": _cmd_paper}[args.cmd](args)
-    except ValidationError as exc:
+                "settings": _cmd_settings, "repair": _cmd_repair, "rollback": _cmd_rollback,
+                "monitor": _cmd_monitor, "autostart": _cmd_autostart}[args.cmd](args)
+    except (ValidationError, ValueError) as exc:
         print(f"Input tidak valid: {exc}", file=sys.stderr)
         return 2
 

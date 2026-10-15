@@ -8,7 +8,8 @@ from nsd.app_config import DEFAULT_SETTINGS, data_dir, data_dir_warnings, setup_
 from nsd.application.policy_service import PolicyLevel
 from nsd.application.scan_service import ScanService
 from nsd.storage.database import open_database
-from nsd.storage.repositories import AuditRepository, CaseRepository, SettingsRepository
+from nsd.repairs.executor import RepairExecutor
+from nsd.storage.repositories import AuditRepository, CaseRepository, RepairRepository, SettingsRepository
 from nsd.windows.powershell import RealWindowsAdapter
 
 
@@ -20,6 +21,10 @@ class AppContext:
     audit: AuditRepository
     adapter: RealWindowsAdapter
     warnings: list[str]
+    repairs: RepairRepository
+
+    def repair_executor(self) -> RepairExecutor:
+        return RepairExecutor(self.adapter, self.repairs, self.audit, bool(self.settings.get("execution_enabled")))
 
     def scan_service(self) -> ScanService:
         # Fase 1: level dikunci ke 'Diagnosis saja' apa pun isi pengaturan.
@@ -33,4 +38,5 @@ def bootstrap(directory: Path | None = None) -> AppContext:
     settings = SettingsRepository(conn, DEFAULT_SETTINGS)
     cases = CaseRepository(conn)
     cases.prune(settings.get("retention_days"), settings.get("retention_max_cases"))
-    return AppContext(d, cases, settings, AuditRepository(conn), RealWindowsAdapter(), data_dir_warnings(d))
+    adapter = RealWindowsAdapter(allow_mutation=bool(settings.get("execution_enabled")))
+    return AppContext(d, cases, settings, AuditRepository(conn), adapter, data_dir_warnings(d), RepairRepository(conn))

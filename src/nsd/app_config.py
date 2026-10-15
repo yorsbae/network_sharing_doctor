@@ -13,6 +13,7 @@ DEFAULT_SETTINGS: dict = {
     "role": "client",
     "language": "id",
     "policy_level": 1,          # Fase 1: hanya 'Diagnosis saja'
+    "execution_enabled": False,  # Fase 2: harus diaktifkan eksplisit oleh pengguna
     "redact_exports": True,
     "retention_days": 180,
     "retention_max_cases": 500,

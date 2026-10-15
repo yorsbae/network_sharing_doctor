@@ -9,7 +9,6 @@ from nsd.bootstrap import bootstrap
 from nsd.ui.dashboard_page import DashboardPage
 from nsd.ui.diagnose_page import DiagnosePage
 from nsd.ui.history_page import HistoryPage
-from nsd.ui.paper_page import PaperPage
 from nsd.ui.settings_page import SettingsPage
 
 
@@ -21,8 +20,8 @@ class MainWindow(QMainWindow):
         self.nav, self.stack = QListWidget(), QStackedWidget()
         self.nav.setFixedWidth(160)
         dash = DashboardPage(ctx)
-        pages = [("Beranda", dash), ("Diagnosa", DiagnosePage(ctx)), ("Kertas & Layout", PaperPage(ctx)),
-                 ("Riwayat", HistoryPage(ctx)), ("Pengaturan", SettingsPage(ctx))]
+        pages = [("Beranda", dash), ("Diagnosa", DiagnosePage(ctx)), ("Riwayat", HistoryPage(ctx)),
+                 ("Pengaturan", SettingsPage(ctx))]
         for name, w in pages:
             self.nav.addItem(name); self.stack.addWidget(w)
         self.nav.currentRowChanged.connect(self.stack.setCurrentIndex)

@@ -54,3 +54,42 @@ class RealReadOnlyOps(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+import os
+import tempfile
+from pathlib import Path
+
+from nsd.repairs.executor import RepairExecutor, finding_for_rule
+from nsd.rules.loader import load_rules
+from nsd.storage.database import open_database
+from nsd.storage.repositories import AuditRepository, CaseRepository, RepairRepository
+
+
+@unittest.skipUnless(WIN and os.environ.get("NSD_RUN_MUTATING") == "1",
+                     "MENGUBAH layanan Spooler. Hanya di VM LAB: set NSD_RUN_MUTATING=1 dan jalankan sebagai Administrator")
+class RealRepairLab(unittest.TestCase):
+    """Alur penuh PRN-SPOOLER-001 di Windows asli: hentikan Spooler → perbaiki → verifikasi → rollback → pulihkan."""
+
+    def test_spooler_repair_and_rollback(self):
+        a = RealWindowsAdapter(allow_mutation=True)
+        if not a.is_elevated():
+            self.skipTest("butuh Administrator")
+        original = a.run("get_service", service="Spooler").data["Status"]
+        try:
+            self.assertTrue(a.apply("stop_service", service="Spooler").ok)
+            with tempfile.TemporaryDirectory() as d:
+                conn = open_database(Path(d) / "t.db")
+                cases, repo, audit = CaseRepository(conn), RepairRepository(conn), AuditRepository(conn)
+                cid = cases.create_case("client", "printer", "x\\y", "", "Win", True, "d")
+                ex = RepairExecutor(a, repo, audit, True)
+                f = finding_for_rule(load_rules().rules, "PRN-SPOOLER-001")
+                res = ex.execute(f, cid, approved=True)
+                self.assertEqual(res.outcome, "verified", res.message)
+                self.assertEqual(a.run("get_service", service="Spooler").data["Status"], "Running")
+                rb = ex.rollback(cid, res.action_id, approved=True)
+                self.assertEqual(rb.outcome, "verified", rb.message)
+                self.assertEqual(a.run("get_service", service="Spooler").data["Status"], "Stopped")
+                conn.close()
+        finally:   # kembalikan keadaan awal VM
+            a.apply("start_service" if original == "Running" else "stop_service", service="Spooler")

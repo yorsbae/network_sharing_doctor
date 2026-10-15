@@ -10,24 +10,38 @@ tidak mengubah apa pun pada sistem; menjelaskan penyebab berdasarkan bukti dan m
 # Tanpa dependensi (CLI)
 PYTHONPATH=src python -m nsd scan --role client --type folder --host SERVER01 --share Data --error 0x80070035
 PYTHONPATH=src python -m nsd scan --host SERVER01 --share EPSON --type printer --json --out laporan.json
-PYTHONPATH=src python -m nsd history | rules-validate | clear-history
+PYTHONPATH=src python -m nsd history | rules-validate | clear-history | settings
 
-# Ukuran kertas khusus di client (lokal, tanpa server)
-PYTHONPATH=src python -m nsd paper add --name "F4 Kantor" --width 210 --height 330
-PYTHONPATH=src python -m nsd paper list | layout --paper "F4 Kantor" --margin 12 | remove --name "F4 Kantor"
-
-# GUI: Diagnosa → Cetak… membuka popup Print Layout (printer, kertas, margin, pratinjau)
-#      Kertas & Layout → Cetak halaman uji… untuk memeriksa ukuran dengan penggaris
 # GUI (butuh PySide6)
 pip install -e ".[gui]" && python -m nsd
 ```
 Di non-Windows, pemeriksaan khusus Windows ditandai **Belum diperiksa**; pemeriksaan jaringan (DNS, TCP) tetap berjalan.
 Kode keluar `scan`: 0 = tidak ada pemeriksaan gagal, 1 = ada yang gagal, 2 = input tidak valid.
 
+## Perbaikan (Fase 2, opsional, mati secara default)
+```bash
+nsd scan --type printer --host SERVER01 --share EPSON            # menghasilkan ID kasus
+nsd repair --case <id> --rule PRN-SPOOLER-001                    # hanya menampilkan rencana
+nsd settings --set execution_enabled=true                        # aktifkan eksplisit
+nsd repair --case <id> --rule PRN-SPOOLER-001 --confirm          # snapshot → terapkan → verifikasi → scan ulang (sebagai Administrator)
+nsd rollback --case <id> --action <n> --confirm
+```
+Saat ini hanya `start_service` (Spooler/Workstation/Server) yang didukung. Lihat SECURITY.md.
+
+## Monitor latar belakang & autostart (opsional, baca-saja)
+```bash
+nsd monitor --host localhost --type both --interval 300         # jalan terus; status di <data>/status.json
+nsd monitor --status | --once                                    # lihat status terakhir / satu putaran
+nsd autostart install --mode logon-user --share DATA             # jalan saat logon (aman, default)
+nsd autostart install --mode boot-system                         # jalan saat boot sebagai SYSTEM (admin + Program Files)
+nsd autostart status | uninstall
+```
+Ini bukan "server" yang dibutuhkan agar sharing bekerja: berbagi printer/folder sudah autostart bawaan Windows. Monitor hanya memantau dan mencatat perubahan; autostart butuh build terpaket (`NSD.exe`).
+
 ## Tes
 ```bash
 PYTHONPATH=src:. python -m unittest discover -s tests -t . -p 'test_*.py'
-# Di VM Windows (menjalankan PowerShell asli):
+# Di VM Windows (menjalankan PowerShell asli; tes yang MENGUBAH layanan butuh NSD_RUN_MUTATING=1, VM lab saja):
 python -m unittest tests.integration_windows.test_real_windows -v
 ```
 

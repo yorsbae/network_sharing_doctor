@@ -66,3 +66,36 @@ def healthy_responses():
         "test_unc": ok({"Ok": True, "ErrorType": None, "HResult": 0, "Message": None}),
         "recent_print_errors": ok(None),
     }
+
+
+class FakeServiceAdapter:
+    """Adapter berstatus untuk menguji eksekutor perbaikan."""
+
+    def __init__(self, services=None, elevated=True, start_fails="", stays_stopped=False, change_startup=False):
+        self.states = {k: dict(v) for k, v in (services or {"Spooler": {"Status": "Stopped", "StartType": "Automatic"}}).items()}
+        self.elevated, self.start_fails = elevated, start_fails
+        self.stays_stopped, self.change_startup = stays_stopped, change_startup
+        self.applied: list[tuple[str, str]] = []
+        self.reads_ok = True
+
+    def is_windows(self): return True
+    def is_elevated(self): return self.elevated
+
+    def run(self, operation, **p):
+        if operation != "get_service" or not self.reads_ok:
+            return OpResult(False, error="tidak didukung", unsupported=True)
+        s = self.states.get(p["service"])
+        return ok({"Name": p["service"], **s}) if s else OpResult(False, error="layanan tidak ada")
+
+    def apply(self, operation, **p):
+        self.applied.append((operation, p["service"]))
+        if self.start_fails:
+            return OpResult(False, error=self.start_fails, exit_code=1)
+        s = self.states[p["service"]]
+        if operation == "start_service" and not self.stays_stopped:
+            s["Status"] = "Running"
+            if self.change_startup:
+                s["StartType"] = "Manual"
+        if operation == "stop_service":
+            s["Status"] = "Stopped"
+        return ok({"Name": p["service"], **s})
