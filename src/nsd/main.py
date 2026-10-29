@@ -43,6 +43,12 @@ def _build_parser() -> argparse.ArgumentParser:
     m.add_argument("--data-dir", type=Path, help="folder data (mis. untuk mode SYSTEM)")
     m.add_argument("--once", action="store_true", help="satu putaran lalu keluar")
     m.add_argument("--status", action="store_true", help="tampilkan status.json terakhir")
+    sp = sub.add_parser("start", help="Satu klik: pasang autostart (sekali) + nyalakan monitor + buka GUI")
+    sp.add_argument("--host", default="localhost"); sp.add_argument("--share", default="")
+    sp.add_argument("--type", dest="ttype", choices=["printer", "folder", "both"], default="both")
+    sp.add_argument("--interval", type=int, default=300)
+    sp.add_argument("--no-gui", action="store_true", help="Hanya sisi server (monitor), tanpa jendela")
+    sp.add_argument("--no-monitor", action="store_true"); sp.add_argument("--no-autostart", action="store_true")
     au = sub.add_parser("autostart", help="Pasang/hapus autostart monitor (Task Scheduler)")
     au.add_argument("action", choices=["install", "uninstall", "status"])
     au.add_argument("--mode", choices=["logon-user", "boot-system"], default="logon-user")
@@ -242,17 +248,35 @@ def _cmd_autostart(a: argparse.Namespace) -> int:
     return 0 if res.ok else 1
 
 
+def _cmd_start(a: argparse.Namespace) -> int:
+    import logging
+
+    from nsd.app_config import data_dir, setup_logging
+    from nsd.application.launcher import launch
+
+    d = data_dir()
+    log = setup_logging(d)
+    rep = launch(d, host=a.host, share=a.share, target_type=a.ttype, interval=a.interval, with_gui=not a.no_gui,
+                 with_monitor=not a.no_monitor, with_autostart=not a.no_autostart)
+    for line in rep.steps:
+        log.log(logging.INFO, "start: %s", line)
+        print(line)
+    return rep.exit_code
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
+    if args.cmd is None:                      # klik ganda NSD.exe / `python -m nsd` = alur satu klik
+        args = _build_parser().parse_args(["start"])
     try:
-        if args.cmd in (None, "gui"):
+        if args.cmd == "gui":
             from nsd.ui.main_window import run_gui
 
             return run_gui()
         return {"scan": _cmd_scan, "history": _cmd_history,
                 "rules-validate": _cmd_rules_validate, "clear-history": _cmd_clear,
                 "settings": _cmd_settings, "repair": _cmd_repair, "rollback": _cmd_rollback,
-                "monitor": _cmd_monitor, "autostart": _cmd_autostart}[args.cmd](args)
+                "monitor": _cmd_monitor, "start": _cmd_start, "autostart": _cmd_autostart}[args.cmd](args)
     except (ValidationError, ValueError) as exc:
         print(f"Input tidak valid: {exc}", file=sys.stderr)
         return 2

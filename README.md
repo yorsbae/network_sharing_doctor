@@ -18,6 +18,15 @@ pip install -e ".[gui]" && python -m nsd
 Di non-Windows, pemeriksaan khusus Windows ditandai **Belum diperiksa**; pemeriksaan jaringan (DNS, TCP) tetap berjalan.
 Kode keluar `scan`: 0 = tidak ada pemeriksaan gagal, 1 = ada yang gagal, 2 = input tidak valid.
 
+## Alur satu klik (server + client + autostart)
+Klik ganda `NSD.exe` (atau `NSD-Start.bat`) = `nsd start`:
+1. **Autostart** dipasang sekali (Task Scheduler, mode `logon-user`, tanpa admin; hanya build terpaket, idempoten).
+2. **Server side**: monitor baca-saja dinyalakan di latar belakang tanpa jendela (satu instans per folder data).
+3. **Client side**: GUI dibuka (satu instans; klik kedua tidak membuka jendela baru).
+Setelah itu monitor otomatis jalan setiap login. Opsi: `--no-gui` (hanya server), `--no-monitor`, `--no-autostart`, `--host/--share/--type/--interval`.
+`scripts\NSD-Autostart-On.bat` / `NSD-Autostart-Off.bat` memasang/menghapus autostart secara manual. `build_windows.ps1` menyalin ketiga `.bat` ke `dist\NSD\`.
+Belum diuji di Windows asli (lihat progres.md).
+
 ## Perbaikan (Fase 2, opsional, mati secara default)
 ```bash
 nsd scan --type printer --host SERVER01 --share EPSON            # menghasilkan ID kasus

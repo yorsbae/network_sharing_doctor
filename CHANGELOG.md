@@ -1,5 +1,10 @@
 # Changelog
 
+## Belum dirilis: alur satu klik
+- Perintah `nsd start` (juga saat `NSD.exe`/`python -m nsd` dijalankan tanpa argumen): pasang autostart sekali (logon-user, idempoten, hanya build terpaket) + nyalakan monitor terlepas dari jendela + buka GUI; instans tunggal untuk monitor dan GUI.
+- `scripts/NSD-Start.bat`, `NSD-Autostart-On.bat`, `NSD-Autostart-Off.bat`; `build_windows.ps1` menyalinnya ke `dist\NSD`.
+- `nsd gui` tetap membuka GUI saja. Monitor tetap baca-saja. Tes baru: `tests/unit/test_launcher.py`.
+
 ## Belum dirilis: antarmuka
 - Tema terang/gelap/ikuti sistem (Pengaturan > Tema), satu sumber token warna di `src/nsd/ui/theme.py`; semua pasangan teks lolos WCAG AA dan diuji.
 - Menu: Beranda, Diagnosa, Kertas, Riwayat, Pengaturan; pintasan Ctrl+1 sampai Ctrl+5, Ctrl+P untuk cetak.

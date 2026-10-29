@@ -51,6 +51,10 @@
 gagal / lulus / belum diperiksa". → Logikanya terpenuhi dan teruji dengan mock; **belum terbukti di Windows asli**.
 Fase 1 belum boleh dinyatakan selesai sebelum `docs/test-matrix.md` butir 1–6 dan 10 terisi.
 
+## Alur satu klik
+- [x] `application/launcher.py` + `nsd start`: urutan autostart → monitor → GUI, instans tunggal, langkah gagal tidak menghentikan langkah lain (8 tes; uji manual headless di Linux: monitor jalan, panggilan kedua memakai ulang)
+- [~] `.bat` + build PyInstaller + `schtasks` dari `start` — **belum diuji di Windows asli**; cek: klik ganda NSD.exe, reboot/logon memunculkan proses monitor, klik kedua tidak membuka GUI ganda, `--windowed` tidak memunculkan konsol
+
 ## Fase 2 — perbaikan terbatas (sebagian)
 - [x] `apply()` terpisah dari `run()`; menolak bila eksekusi nonaktif / bukan admin / operasi di luar `start_service`,`stop_service`; tanpa `-Force`, tanpa ubah tipe startup
 - [x] Eksekutor `start_service`: gerbang kebijakan → baca keadaan awal → **snapshot tersimpan dulu** → terapkan → verifikasi (Running, startup tidak berubah) → audit
