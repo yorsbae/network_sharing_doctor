@@ -1,5 +1,11 @@
 # Changelog
 
+## Belum dirilis: UI baru (mockup Print Test)
+- Cangkang baru: sidebar navy dengan ikon, merek "Print Test", status sistem nyata; tema gelap bawaan (terang tersedia), token baru dan chip status bernada.
+- Halaman baru: Dashboard (kartu status, hasil terakhir, aksi cepat), Daftar printer (+ dialog detail dan cetak halaman uji), Antrean cetak (baca-saja, muat ulang 10 dtk). Scan printer, Log, dan Pengaturan ditata ulang; Pengaturan punya sakelar autostart monitor.
+- "Scan sekarang" di Dashboard langsung memindai komputer ini. Operasi baca-saja baru `list_print_jobs`.
+- Pemuatan data lewat thread latar (`run_async`) agar jendela tidak membeku. Tes anti-slop otomatis.
+
 ## Belum dirilis: alur satu klik
 - Perintah `nsd start` (juga saat `NSD.exe`/`python -m nsd` dijalankan tanpa argumen): pasang autostart sekali (logon-user, idempoten, hanya build terpaket) + nyalakan monitor terlepas dari jendela + buka GUI; instans tunggal untuk monitor dan GUI.
 - `scripts/NSD-Start.bat`, `NSD-Autostart-On.bat`, `NSD-Autostart-Off.bat`; `build_windows.ps1` menyalinnya ke `dist\NSD`.

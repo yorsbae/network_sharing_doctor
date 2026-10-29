@@ -1,20 +1,25 @@
 # Arah desain
 
-Alat bantu administrator dan staf kantor yang sedang menghadapi masalah cetak atau folder bersama. Tenang, jelas, dan tidak ramai.
+Alat bantu staf kantor dan administrator saat printer atau cetak bermasalah. Mockup "Print Test" (sidebar navy, aksen biru, kartu status, tabel dengan chip) adalah acuan tetap untuk bentuk dan susunan. Bagian yang tidak diatur mockup mengikuti pagar anti-slop di bawah.
 
-## Dial
-ENERGY 1, RHYTHM 1, MOTION 1. Aplikasi kerja yang dipakai saat sedang terburu-buru; keseragaman memang disengaja.
+## Struktur
+Dashboard, Scan printer, Daftar printer, Antrean cetak, Kertas, Log, Pengaturan. Sidebar menampilkan status scan terakhir yang nyata, bukan label "Healthy" tetap.
+Bahasa antarmuka: Indonesia. Nama menu mengikuti mockup.
 
-## Warna (alasan satu baris per pilihan)
-- Hijau-biru tua (`primary`) sebagai satu-satunya aksen: tombol utama dan fokus. Dekat dengan nuansa "dokter" tanpa memakai biru-ungu bawaan.
-- Latar krem hangat (terang) dan arang kehijauan (gelap): mengurangi silau saat dibaca lama.
-- Merah, kuning tua, hijau hanya untuk status Gagal, Peringatan, Lulus. Selalu disertai label teks seperti `[GAGAL]`.
-- Semua pasangan teks diuji otomatis (WCAG AA) di `tests/ui/test_theme_and_pages.py`.
+## Warna
+Navy gelap sebagai bawaan, terang tersedia. Biru (`primary`) hanya untuk tombol utama, menu aktif, dan fokus. Hijau, kuning, merah hanya untuk status dan selalu disertai teks. Semua pasangan teks diuji (WCAG AA) termasuk chip bernada. `hairline` hanya untuk tepi kartu dekoratif; `border` (3:1) untuk kontrol.
 
-## Bentuk dan tipografi
-- Radius 6 px untuk kontrol, 10 px untuk panel. Tidak ada bayangan, glow, gradien, atau kaca buram.
-- Font sistem Windows (Segoe UI). Pilihan ini membuat teks Indonesia terbaca baik dan tanpa unduhan font.
-- Tidak ada ikon dekoratif. Menu hanya memuat halaman yang benar-benar ada.
+## Bentuk
+Radius berjenjang: 8 kontrol, 10 ubin dan baris aksi, 12 panel, pil penuh untuk chip. Tanpa bayangan, glow, gradien, atau kaca buram. Tanpa animasi.
 
 ## Teks
-Bahasa Indonesia, kalimat pendek, tombol berupa kata kerja spesifik (Scan & Diagnosa, Ekspor laporan, Hapus riwayat). Tanpa tanda pisah panjang, tanpa angka atau klaim yang tidak berasal dari data nyata.
+Sentence case, kata kerja spesifik, nama aksi sama di seluruh alur (Scan sekarang, Mulai scan, Muat ulang). Tanpa huruf kapital semua, tanpa panah di teks, tanpa tanda pisah panjang. Keadaan kosong dan galat menyebut apa yang terjadi dan langkah berikutnya.
+
+## Data
+Tidak ada angka atau nama contoh. Kartu dan tabel hanya menampilkan data nyata; bila tidak dapat dibaca (mis. bukan Windows) tertulis "Belum diperiksa" beserta alasannya. Kolom yang nilainya sama di setiap baris tidak ditampilkan.
+
+## Pagar anti-slop (diuji otomatis di `tests/ui`)
+Tidak ada gradien, bayangan, `text-transform`, `letter-spacing`, panah, atau tanda pisah panjang di kode UI; kontras chip dan token diuji di kedua tema. Cincin fokus menu hanya muncul saat navigasi keyboard.
+
+## Yang sengaja belum ada dari mockup
+Jeda/batalkan/hapus antrean (ini mengubah sistem; Fase 1 baca-saja), pilihan jenis pemeriksaan (mesin menjalankan semua lapisan), tab Settings pada detail printer, minimize ke tray, dan scan otomatis saat buka.

@@ -51,6 +51,12 @@
 gagal / lulus / belum diperiksa". → Logikanya terpenuhi dan teruji dengan mock; **belum terbukti di Windows asli**.
 Fase 1 belum boleh dinyatakan selesai sebelum `docs/test-matrix.md` butir 1–6 dan 10 terisi.
 
+## UI baru (mockup Print Test)
+- [x] Tema navy, ikon SVG, chip bernada, kartu; kontras diuji di kedua tema; pagar anti-slop diuji
+- [x] Dashboard, Daftar printer, Antrean cetak, dialog detail, Log, Pengaturan (autostart); tes halaman dengan adapter palsu; dirender offscreen dan diperiksa mata
+- [~] Tampilan di Windows asli (font Segoe UI, DPI, ikon), data Get-Printer/Get-PrintJob nyata: **belum diuji**
+- [ ] Dari mockup, belum: jeda/batalkan antrean (mengubah sistem), pilih jenis pemeriksaan, tray
+
 ## Alur satu klik
 - [x] `application/launcher.py` + `nsd start`: urutan autostart → monitor → GUI, instans tunggal, langkah gagal tidak menghentikan langkah lain (8 tes; uji manual headless di Linux: monitor jalan, panggilan kedua memakai ulang)
 - [~] `.bat` + build PyInstaller + `schtasks` dari `start` — **belum diuji di Windows asli**; cek: klik ganda NSD.exe, reboot/logon memunculkan proses monitor, klik kedua tidak membuka GUI ganda, `--windowed` tidak memunculkan konsol

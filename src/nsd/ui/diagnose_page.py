@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from html import escape
 
-from PySide6.QtCore import QThread, Qt
+from PySide6.QtCore import QThread, Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QGuiApplication
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog, QGridLayout, QHBoxLayout, QLineEdit,
                                QMessageBox, QPlainTextEdit, QProgressBar, QPushButton, QSplitter, QStackedWidget,
@@ -13,12 +13,13 @@ from nsd.models import Role, ScanRequest, Status, TargetType
 from nsd.security.allowlist import ValidationError
 from nsd.ui import theme
 from nsd.ui.labels import ROLE_LABELS
+from nsd.ui.widgets.cards import panel
 from nsd.ui.widgets.worker import ScanWorker
 
 _HEAD = [(Status.FAIL, "Masalah ditemukan"), (Status.WARNING, "Peringatan"),
          (Status.PASS, "Lulus"), (Status.UNKNOWN, "Belum diperiksa")]
 
-_EMPTY = "Belum ada hasil. Isi target di atas, lalu klik Scan & Diagnosa."
+_EMPTY = "Belum ada hasil. Isi target di atas, lalu klik Mulai scan."
 
 
 class ExportDialog(QDialog):
@@ -72,6 +73,8 @@ class ExportDialog(QDialog):
 
 
 class DiagnosePage(QWidget):
+    scanned = Signal()
+
     def __init__(self, ctx) -> None:
         super().__init__()
         self.ctx, self.outcome, self._thread, self._worker = ctx, None, None, None
@@ -79,12 +82,11 @@ class DiagnosePage(QWidget):
         lay.setContentsMargins(32, 28, 32, 20)
         lay.setSpacing(14)
         lay.addWidget(theme.header(
-            "Diagnosa", "Isi target yang gagal diakses, lalu jalankan pemeriksaan. Sistem tidak diubah."))
+            "Scan printer", "Isi target yang gagal diakses, lalu jalankan pemeriksaan. Sistem tidak diubah."))
 
-        formbox = QWidget()
-        formbox.setMaximumWidth(720)
-        grid = QGridLayout(formbox)
-        grid.setContentsMargins(0, 0, 0, 0)
+        formbox, form_lay = panel()
+        grid = QGridLayout()
+        form_lay.addLayout(grid)
         grid.setHorizontalSpacing(16)
         grid.setVerticalSpacing(4)
         self.role = QComboBox()
@@ -117,7 +119,7 @@ class DiagnosePage(QWidget):
         lay.addWidget(formbox)
 
         row = QHBoxLayout()
-        self.go = QPushButton("Scan && Diagnosa")
+        self.go = QPushButton("Mulai scan")
         theme.set_role(self.go, "primary")
         self.go.clicked.connect(self.start)
         self.export = QPushButton("Ekspor laporan…")
@@ -142,6 +144,13 @@ class DiagnosePage(QWidget):
         row.addWidget(self.fix)
         lay.addLayout(row)
 
+        self.summary = QWidget()
+        self.summary_lay = QHBoxLayout(self.summary)
+        self.summary_lay.setContentsMargins(0, 0, 0, 0)
+        self.summary_lay.setSpacing(8)
+        self.summary.setVisible(False)
+        lay.addWidget(self.summary)
+
         self.bar = QProgressBar()
         self.bar.setVisible(False)
         self.bar.setTextVisible(False)
@@ -164,6 +173,17 @@ class DiagnosePage(QWidget):
         self.results.addWidget(split)
         lay.addWidget(self.results, 1)
 
+    def scan_this_computer(self) -> None:
+        """Dashboard > Scan sekarang: periksa printer dan spooler di komputer ini tanpa mengisi form."""
+        if self._thread is not None:
+            return
+        self.role.setCurrentIndex(1)           # server: komputer ini yang membagikan
+        self.ttype.setCurrentIndex(1)          # printer
+        self.host.setText("localhost")
+        self.share.clear()
+        self.error.clear()
+        self.start()
+
     def start(self) -> None:
         if self._thread is not None:
             return
@@ -179,6 +199,7 @@ class DiagnosePage(QWidget):
         self.bar.setVisible(True)
         self.bar.setValue(0)
         self.status.setText("Memeriksa…")
+        self.summary.setVisible(False)
         self.empty.setText("Memeriksa target. Hasil muncul di sini setelah selesai.")
         self.results.setCurrentIndex(0)
         self._thread, self._worker = QThread(), ScanWorker(svc, req)
@@ -215,6 +236,8 @@ class DiagnosePage(QWidget):
         self.export.setEnabled(True)
         self.print_btn.setEnabled(True)
         self.cp_id.setEnabled(True)
+        self._fill_summary(o)
+        self.scanned.emit()
         self.tree.clear()
         for st, title in _HEAD:
             rows = [c for c in o.checks if c.status is st]
@@ -244,6 +267,19 @@ class DiagnosePage(QWidget):
         self.causes.setHtml("".join(html) or "<p>Tidak ada aturan yang cocok dengan bukti. Itu bukan bukti "
                             "bahwa tidak ada masalah; lihat pemeriksaan 'Belum diperiksa'.</p>")
         self.results.setCurrentIndex(1)
+
+    def _fill_summary(self, o) -> None:
+        while self.summary_lay.count():
+            w = self.summary_lay.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        tone = {Status.FAIL: "fail", Status.WARNING: "warn", Status.PASS: "ok", Status.UNKNOWN: "unknown"}
+        for st, title in _HEAD:
+            n = o.count(st)
+            if n:
+                self.summary_lay.addWidget(theme.chip(f"{n} {title.lower()}", tone[st]))
+        self.summary_lay.addStretch(1)
+        self.summary.setVisible(True)
 
     def _export(self) -> None:
         if self.outcome:

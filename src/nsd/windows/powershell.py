@@ -102,6 +102,14 @@ READ_OPERATIONS: dict[str, ReadOp] = {
         {"host": validate_host},
         timeout=30,
     ),
+    # Antrean cetak (BACA-SAJA): tidak menjeda/membatalkan/menghapus pekerjaan apa pun.
+    "list_print_jobs": ReadOp(
+        "@(Get-Printer | ForEach-Object { $p=$_.Name; Get-PrintJob -PrinterName $p -ErrorAction SilentlyContinue "
+        "| ForEach-Object { [pscustomobject]@{Id=$_.Id;Document=$_.DocumentName;Printer=$p;"
+        "Status=$_.JobStatus.ToString();Pages=$_.TotalPages;Size=$_.Size;Submitted=$_.SubmittedTime.ToString('s')} } }) "
+        "| ConvertTo-Json -Compress",
+        timeout=30,
+    ),
     "list_local_shares": ReadOp(
         "@(Get-SmbShare | ForEach-Object { [pscustomobject]@{Name=$_.Name;Special=[bool]$_.Special} }) "
         "| ConvertTo-Json -Compress"

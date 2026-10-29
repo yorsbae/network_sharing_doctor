@@ -26,6 +26,26 @@ class ContrastTokens(unittest.TestCase):
                 ratio = contrast_ratio(getattr(t, fg), getattr(t, bg))
                 self.assertGreaterEqual(ratio, minimum, f"{t.name}: {fg} di atas {bg} = {ratio:.2f}")
 
+    def test_anti_slop_rules_hold_in_ui_source(self):
+        """Pagar desain (DESIGN.md): tanpa gradien/bayangan/glow, huruf besar semua, jarak huruf, panah di teks."""
+        import re
+        banned = re.compile(r"qlineargradient|qradialgradient|qconicalgradient|box-shadow|QGraphicsDropShadowEffect|"
+                            r"QGraphicsBlurEffect|text-transform|letter-spacing|\u2192|\u2014|setText\([^)]*\.upper\(\)")
+        hits = []
+        for p in (SRC / "ui").rglob("*.py"):
+            for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+                if banned.search(line):
+                    hits.append(f"{p.name}:{n}")
+        self.assertEqual(hits, [])
+
+    @unittest.skipUnless(HAVE_QT, "PySide6 tidak terpasang")
+    def test_status_chips_and_tiles_meet_contrast_in_both_themes(self):
+        from nsd.ui.theme import DARK, LIGHT, TONES, contrast_ratio, tone_colors
+        for t in (LIGHT, DARK):
+            for tone in TONES:
+                fg, bg = tone_colors(t, tone)
+                self.assertGreaterEqual(contrast_ratio(fg, bg), 4.5, f"{t.name}/{tone}")
+
     def test_no_em_dash_in_source(self):
         hits = [str(p.relative_to(SRC)) for p in SRC.rglob("*.py") if "—" in p.read_text(encoding="utf-8")]
         self.assertEqual(hits, [])
@@ -54,7 +74,7 @@ class ThemeAndPages(unittest.TestCase):
 
     def test_theme_setting_has_default_and_persists(self):
         ctx = self.ctx()
-        self.assertEqual(ctx.settings.get("theme"), "system")
+        self.assertEqual(ctx.settings.get("theme"), "dark")
         ctx.settings.set("theme", "dark")
         self.assertEqual(ctx.settings.get("theme"), "dark")
 
@@ -63,7 +83,7 @@ class ThemeAndPages(unittest.TestCase):
         from nsd.ui.main_window import MainWindow
         win = MainWindow(self.ctx())
         self.assertEqual([win.nav.item(i).text() for i in range(win.nav.count())],
-                         ["Beranda", "Diagnosa", "Kertas", "Riwayat", "Pengaturan"])
+                         ["Dashboard", "Scan printer", "Daftar printer", "Antrean cetak", "Kertas", "Log", "Pengaturan"])
         for mode in ("light", "dark"):
             theme.apply_theme(self.app, mode)
             for i in range(win.nav.count()):
@@ -99,6 +119,36 @@ class ThemeAndPages(unittest.TestCase):
         self.assertIsNone(page._thread, "scan tidak selesai dalam 20 detik")
         crit.assert_not_called()
         return page
+
+    def test_dashboard_scan_now_scans_this_computer_without_a_form(self):
+        from nsd.application.scan_service import ScanService
+        from nsd.ui.main_window import MainWindow
+        from tests.fixtures.fakes import FakeAdapter, FakeNet, healthy_responses
+        ctx = self.ctx()
+        ctx.adapter = FakeAdapter(healthy_responses())
+        ctx.scan_service = lambda: ScanService(ctx.adapter, ctx.cases, ctx.audit, net=FakeNet())
+        win = MainWindow(ctx)
+        win.dash.scan_btn.click()
+        deadline = time.monotonic() + 20
+        while win.diagnose._thread is not None and time.monotonic() < deadline:
+            self.app.processEvents(); time.sleep(0.01)
+        self.assertEqual(win.nav.currentRow(), 1)
+        self.assertEqual(win.diagnose.host.text(), "localhost")
+        self.assertIsNotNone(win.diagnose.outcome)
+        from nsd.ui.labels import case_tone
+        self.assertEqual(win.side_status.text(), case_tone(win.diagnose.outcome.overall)[0])
+
+    def test_printer_pages_show_honest_state_when_windows_data_is_unavailable(self):
+        from nsd.application import printers
+        from nsd.ui.printers_page import PrintersPage
+        from nsd.ui.queue_page import QueuePage
+        from tests.fixtures.fakes import FakeAdapter
+        ctx = self.ctx()
+        ctx.adapter = FakeAdapter({})                       # semua operasi: tidak didukung
+        for page in (PrintersPage(ctx), QueuePage(ctx)):
+            page._loaded(printers.Listing([], False, "tidak didukung"))
+            self.assertEqual(page.views.currentIndex(), 0)
+            self.assertIn("tidak dapat dibaca", page.note.text())
 
     def test_diagnose_scan_in_worker_thread_completes(self):
         """Regresi: koneksi SQLite dibuat di thread utama, scan GUI berjalan di QThread."""
@@ -168,6 +218,9 @@ class ThemeAndPages(unittest.TestCase):
         ctx = self.ctx()
         page = SettingsPage(ctx)
         combo = next(c for c in page.findChildren(QComboBox) if c.findData("dark") >= 0)
+        combo.setCurrentIndex(combo.findData("light"))        # bawaan sekarang gelap; pindah ke terang
+        self.assertEqual(ctx.settings.get("theme"), "light")
+        self.assertEqual(theme.tokens().name, "light")
         combo.setCurrentIndex(combo.findData("dark"))
         self.assertEqual(ctx.settings.get("theme"), "dark")
         self.assertEqual(theme.tokens().name, "dark")

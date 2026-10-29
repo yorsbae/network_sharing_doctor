@@ -18,6 +18,9 @@ pip install -e ".[gui]" && python -m nsd
 Di non-Windows, pemeriksaan khusus Windows ditandai **Belum diperiksa**; pemeriksaan jaringan (DNS, TCP) tetap berjalan.
 Kode keluar `scan`: 0 = tidak ada pemeriksaan gagal, 1 = ada yang gagal, 2 = input tidak valid.
 
+## Tampilan
+Menu: Dashboard, Scan printer, Daftar printer, Antrean cetak, Kertas, Log, Pengaturan. Arah desain dan pagar anti-slop ada di [`DESIGN.md`](DESIGN.md).
+
 ## Alur satu klik (server + client + autostart)
 Klik ganda `NSD.exe` (atau `NSD-Start.bat`) = `nsd start`:
 1. **Autostart** dipasang sekali (Task Scheduler, mode `logon-user`, tanpa admin; hanya build terpaket, idempoten).

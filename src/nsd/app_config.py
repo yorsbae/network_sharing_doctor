@@ -12,7 +12,7 @@ APP_DIRNAME = "NetworkSharingDoctor"
 DEFAULT_SETTINGS: dict = {
     "role": "client",
     "language": "id",
-    "theme": "system",           # system | light | dark
+    "theme": "dark",             # system | light | dark
     "policy_level": 1,         # Fase 1: hanya 'Diagnosis saja'
     "execution_enabled": False,  # Fase 2: harus diaktifkan eksplisit oleh pengguna
     "redact_exports": True,

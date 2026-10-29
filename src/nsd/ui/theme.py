@@ -8,9 +8,9 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QObject, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QImage, QPainter, QPalette, QPen
-from PySide6.QtWidgets import QApplication, QFrame, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from nsd.models import Status
 
@@ -49,24 +49,25 @@ class Tokens:
     disabled_text: str
     disabled_bg: str
     disabled_border: str
+    hairline: str
 
 
 LIGHT = Tokens(
-    name="light", bg="#F4F2EC", surface="#FFFFFF", surface_alt="#ECE9DF", text="#1C2321", muted="#4A5450",
-    border="#85806F", sel_bg="#CFE5E1", primary="#0F5A55", primary_hover="#0B4A46", primary_pressed="#083B38",
-    on_primary="#FFFFFF", danger="#A32A1F", danger_hover="#8A2219", on_danger="#FFFFFF", focus="#0F5A55",
-    fail="#A32A1F", warn="#7A4A00", ok="#1B6B3A", unknown="#4A5450",
-    side="#10302D", side_text="#E6F0EE", side_muted="#A9C4BF", side_hover="#174440", side_sel="#1F6A64",
-    canvas="#D9D5C8", disabled_text="#6C746F", disabled_bg="#E4E1D7", disabled_border="#B9B5A6",
+    name="light", bg="#EEF3FA", surface="#FFFFFF", surface_alt="#E6EDF7", text="#12203A", muted="#4B5C78",
+    border="#7387A6", sel_bg="#D6E4FB", primary="#1D58D8", primary_hover="#1749B3", primary_pressed="#133C93",
+    on_primary="#FFFFFF", danger="#B3261E", danger_hover="#951F18", on_danger="#FFFFFF", focus="#1D58D8",
+    fail="#B3261E", warn="#8A5300", ok="#17693A", unknown="#4B5C78",
+    side="#0F2342", side_text="#EAF0FA", side_muted="#A9BCDB", side_hover="#17325D", side_sel="#2563EB",
+    canvas="#D5DCE8", disabled_text="#68748B", disabled_bg="#E3E9F2", disabled_border="#B9C4D6", hairline="#D5DEEB",
 )
 
 DARK = Tokens(
-    name="dark", bg="#141A19", surface="#1D2524", surface_alt="#27312F", text="#E8EDEB", muted="#AEB9B5",
-    border="#74847F", sel_bg="#27423F", primary="#46B0A6", primary_hover="#66C4BB", primary_pressed="#34968D",
-    on_primary="#07201D", danger="#FF8F84", danger_hover="#FFB0A8", on_danger="#2B0A06", focus="#46B0A6",
-    fail="#FF8F84", warn="#F0B45A", ok="#7FD19A", unknown="#AEB9B5",
-    side="#0B1E1C", side_text="#E6F0EE", side_muted="#9DB9B4", side_hover="#123432", side_sel="#1F6A64",
-    canvas="#2E3836", disabled_text="#7F8C88", disabled_bg="#1A2120", disabled_border="#3C4845",
+    name="dark", bg="#0B1930", surface="#10223F", surface_alt="#172C4D", text="#EAF0FA", muted="#A6B6D0",
+    border="#5F76A0", sel_bg="#1B3A6B", primary="#2F6FEB", primary_hover="#2A62D1", primary_pressed="#2455B6",
+    on_primary="#FFFFFF", danger="#FF8A80", danger_hover="#FFADA6", on_danger="#2B0A06", focus="#6FA3FF",
+    fail="#FF8A80", warn="#F5B94E", ok="#5FD39A", unknown="#A6B6D0",
+    side="#081528", side_text="#EAF0FA", side_muted="#9FB2D1", side_hover="#12294C", side_sel="#2563EB",
+    canvas="#1A2B47", disabled_text="#7E8BA3", disabled_bg="#0F1E36", disabled_border="#2C4064", hairline="#223A5F",
 )
 
 # (teks, latar, minimum). Teks biasa 4.5:1, batas komponen dan fokus 3:1 (R-25).
@@ -105,6 +106,29 @@ def contrast_ratio(fg: str, bg: str) -> float:
 
     hi, lo = sorted((lum(fg), lum(bg)), reverse=True)
     return (hi + 0.05) / (lo + 0.05)
+
+
+def mix(fg: str, bg: str, ratio: float) -> str:
+    """Campur warna fg ke bg sebesar `ratio` (0..1). Dipakai untuk latar chip/ubin bernada."""
+    f, b = fg.lstrip("#"), bg.lstrip("#")
+    ch = [round(int(f[i:i + 2], 16) * ratio + int(b[i:i + 2], 16) * (1 - ratio)) for i in (0, 2, 4)]
+    return "#{:02X}{:02X}{:02X}".format(*ch)
+
+
+TONES = ("ok", "warn", "fail", "unknown")
+
+
+def tone_colors(t: Tokens, tone: str) -> tuple[str, str]:
+    """(teks, latar) untuk chip bernada pada kartu (surface)."""
+    fg = {"ok": t.ok, "warn": t.warn, "fail": t.fail}.get(tone, t.unknown)
+    return fg, mix(fg, t.surface, 0.16)
+
+
+class _Notifier(QObject):
+    changed = Signal()
+
+
+notifier = _Notifier()   # dipancarkan setiap tema diterapkan; ikon/gambar yang berwarna mendengarkan ini
 
 
 def status_color(status: Status) -> str:
@@ -155,33 +179,45 @@ def _indicator_images(t: Tokens) -> tuple[str, str]:
 
 def build_qss(t: Tokens) -> str:
     off, on = _indicator_images(t)
+    tone_rules = ""
+    for tone in TONES:
+        fg, bg = tone_colors(t, tone)
+        tone_rules += (f'QLabel[role="chip"][tone="{tone}"] {{ color: {fg}; background: {bg}; }}\n'
+                       f'QFrame[role="tile"][tone="{tone}"] {{ background: {bg}; }}\n')
     return f"""
 QMainWindow, QDialog {{ background: {t.bg}; }}
 QStackedWidget {{ background: {t.bg}; }}
 QLabel {{ color: {t.text}; background: transparent; }}
 QLabel[role="title"] {{ font-size: 22px; font-weight: 600; }}
-QLabel[role="subtitle"] {{ color: {t.muted}; font-size: 14px; }}
+QLabel[role="subtitle"] {{ color: {t.muted}; font-size: 13px; }}
 QLabel[role="section"] {{ font-size: 15px; font-weight: 600; }}
 QLabel[role="caption"] {{ color: {t.muted}; font-size: 12px; }}
+QLabel[role="stat"] {{ font-size: 18px; font-weight: 600; }}
 QLabel[role="empty"] {{ color: {t.muted}; font-size: 14px; padding: 24px; }}
 QLabel[role="canvas"] {{ background: {t.canvas}; }}
+QLabel[role="chip"] {{ border-radius: 11px; padding: 2px 10px; font-size: 12px; font-weight: 600; }}
+{tone_rules}
 QToolTip {{ background: {t.surface}; color: {t.text}; border: 1px solid {t.border}; padding: 4px 6px; }}
 
 QFrame#sidebar {{ background: {t.side}; }}
-QLabel#brand {{ color: {t.side_text}; font-size: 16px; font-weight: 600; }}
-QLabel#brandVersion {{ color: {t.side_muted}; font-size: 12px; }}
+QLabel#brand {{ color: {t.side_text}; font-size: 15px; font-weight: 600; }}
+QLabel#brandVersion {{ color: {t.side_muted}; font-size: 11px; }}
+QLabel#sideStatus {{ color: {t.side_text}; font-size: 12px; }}
+QLabel#sideMeta {{ color: {t.side_muted}; font-size: 11px; }}
+QFrame#sideDivider {{ background: {t.side_hover}; max-height: 1px; min-height: 1px; border: 0; }}
 QListWidget#nav {{ background: transparent; border: 2px solid transparent; border-radius: 8px; outline: 0;
     color: {t.side_text}; font-size: 14px; }}
-QListWidget#nav::item {{ padding: 10px 14px; margin: 2px 0; border-radius: 6px; color: {t.side_text}; }}
+QListWidget#nav::item {{ padding: 10px 12px; margin: 2px 0; border-radius: 8px; color: {t.side_text}; }}
 QListWidget#nav::item:hover {{ background: {t.side_hover}; }}
-QListWidget#nav::item:selected {{ background: {t.side_sel}; color: {t.side_text}; border: 0; }}
-QListWidget#nav:focus {{ border: 2px solid {t.side_muted}; }}
+QListWidget#nav::item:selected {{ background: {t.side_sel}; color: #FFFFFF; border: 0; }}
+QListWidget#nav[kbfocus="true"]::item:selected {{ border: 2px solid #FFFFFF; }}
 
-QFrame[role="panel"] {{ background: {t.surface}; border: 1px solid {t.border}; border-radius: 10px; }}
-QFrame[role="callout"] {{ background: {t.surface_alt}; border: 1px solid {t.border}; border-radius: 10px; }}
+QFrame[role="panel"] {{ background: {t.surface}; border: 1px solid {t.hairline}; border-radius: 12px; }}
+QFrame[role="callout"] {{ background: {t.surface_alt}; border: 1px solid {t.hairline}; border-radius: 12px; }}
+QFrame[role="tile"] {{ border: 0; border-radius: 10px; }}
 QFrame[role="panel"] QLabel, QFrame[role="callout"] QLabel {{ border: 0; }}
 
-QPushButton {{ background: {t.surface}; color: {t.text}; border: 1px solid {t.border}; border-radius: 6px;
+QPushButton {{ background: {t.surface}; color: {t.text}; border: 1px solid {t.border}; border-radius: 8px;
     padding: 7px 16px; min-height: 20px; }}
 QPushButton:hover {{ background: {t.surface_alt}; }}
 QPushButton:pressed {{ background: {t.sel_bg}; }}
@@ -199,31 +235,43 @@ QPushButton[role="danger"]:hover {{ background: {t.danger}; color: {t.on_danger}
 QPushButton[role="danger"]:focus {{ border: 2px solid {t.fail}; }}
 QPushButton[role="danger"]:disabled {{ color: {t.disabled_text}; background: {t.disabled_bg};
     border-color: {t.disabled_border}; }}
+QPushButton[role="action"] {{ background: {t.surface_alt}; border: 1px solid {t.hairline}; border-radius: 10px;
+    text-align: left; padding: 10px 12px; }}
+QPushButton[role="action"]:hover {{ border-color: {t.border}; }}
+QPushButton[role="action"]:focus {{ border: 2px solid {t.focus}; padding: 9px 11px; }}
+QPushButton[role="link"] {{ background: transparent; border: 0; color: {t.primary}; padding: 4px 6px; font-weight: 600; }}
+QPushButton[role="link"]:hover {{ background: {t.surface_alt}; }}
+QPushButton[role="link"]:focus {{ border: 2px solid {t.focus}; padding: 2px 4px; }}
 
 QLineEdit, QPlainTextEdit, QTextBrowser {{ background: {t.surface}; color: {t.text}; border: 1px solid {t.border};
-    border-radius: 6px; padding: 6px 8px; selection-background-color: {t.sel_bg}; selection-color: {t.text}; }}
+    border-radius: 8px; padding: 6px 8px; selection-background-color: {t.sel_bg}; selection-color: {t.text}; }}
 QLineEdit:focus, QPlainTextEdit:focus, QTextBrowser:focus {{ border: 2px solid {t.focus}; padding: 5px 7px; }}
 QComboBox, QSpinBox, QDoubleSpinBox {{ padding: 4px 6px; min-height: 22px; }}
 
 QTreeWidget, QTableWidget, QListWidget {{ background: {t.surface}; alternate-background-color: {t.surface_alt};
-    color: {t.text}; border: 1px solid {t.border}; border-radius: 6px; gridline-color: {t.surface_alt}; }}
+    color: {t.text}; border: 1px solid {t.hairline}; border-radius: 10px; gridline-color: {t.hairline}; }}
 QTreeWidget:focus, QTableWidget:focus, QListWidget:focus {{ border: 2px solid {t.focus}; }}
-QTreeWidget::item, QTableWidget::item {{ padding: 4px 2px; }}
+QTreeWidget::item, QTableWidget::item {{ padding: 6px 4px; }}
 QTreeWidget::item:selected, QTableWidget::item:selected, QListWidget::item:selected {{
     background: {t.sel_bg}; color: {t.text}; border-top: 1px solid {t.focus}; border-bottom: 1px solid {t.focus}; }}
-QHeaderView::section {{ background: {t.surface_alt}; color: {t.text}; padding: 6px 8px; border: 0;
-    border-bottom: 1px solid {t.border}; font-weight: 600; }}
+QHeaderView::section {{ background: {t.surface}; color: {t.muted}; padding: 8px 10px; border: 0;
+    border-bottom: 1px solid {t.hairline}; font-weight: 500; }}
+QTableCornerButton::section {{ background: {t.surface}; border: 0; }}
 QSplitter::handle {{ background: transparent; }}
+QTabWidget::pane {{ border: 0; border-top: 1px solid {t.hairline}; }}
+QTabBar::tab {{ background: transparent; color: {t.muted}; padding: 8px 16px; border: 0; border-bottom: 2px solid transparent; }}
+QTabBar::tab:selected {{ color: {t.text}; border-bottom: 2px solid {t.primary}; font-weight: 600; }}
+QTabBar::tab:hover {{ color: {t.text}; }}
 
 QCheckBox {{ border: 2px solid transparent; border-radius: 4px; padding: 2px; spacing: 8px; }}
 QCheckBox:focus {{ border: 2px solid {t.focus}; }}
 QCheckBox::indicator {{ width: 18px; height: 18px; image: url("{off}"); }}
 QCheckBox::indicator:checked {{ image: url("{on}"); }}
 
-QGroupBox {{ border: 1px solid {t.border}; border-radius: 10px; margin-top: 14px; padding: 14px 10px 10px 10px; }}
+QGroupBox {{ border: 1px solid {t.hairline}; border-radius: 12px; margin-top: 14px; padding: 14px 10px 10px 10px; }}
 QGroupBox::title {{ subcontrol-origin: margin; left: 12px; padding: 0 4px; color: {t.text}; font-weight: 600; }}
 
-QProgressBar {{ background: {t.surface_alt}; border: 1px solid {t.border}; border-radius: 5px; max-height: 10px; }}
+QProgressBar {{ background: {t.surface_alt}; border: 1px solid {t.hairline}; border-radius: 5px; max-height: 10px; }}
 QProgressBar::chunk {{ background: {t.primary}; border-radius: 4px; }}
 """
 
@@ -258,6 +306,7 @@ def apply_theme(app: QApplication, mode: str = "system") -> str:
         _apply_font(app)
         app.setPalette(build_palette(t))
         app.setStyleSheet(build_qss(t))
+        notifier.changed.emit()
     finally:
         _state["applying"] = False
     return t.name
@@ -287,14 +336,39 @@ def label(text: str, role: str | None = None, wrap: bool = True, selectable: boo
     return lb
 
 
-def header(title: str, subtitle: str | None = None) -> QWidget:
+def set_tone(widget: QWidget, tone: str) -> QWidget:
+    widget.setProperty("tone", tone if tone in TONES else "unknown")
+    widget.style().unpolish(widget)
+    widget.style().polish(widget)
+    return widget
+
+
+def chip(text: str, tone: str = "unknown") -> QLabel:
+    """Pil status. Teks selalu ada; warna hanya penguat, bukan satu-satunya penanda."""
+    lb = QLabel(text)
+    lb.setProperty("role", "chip")
+    lb.setProperty("tone", tone if tone in TONES else "unknown")
+    lb.setAlignment(Qt.AlignCenter)
+    lb.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
+    return lb
+
+
+def header(title: str, subtitle: str | None = None, *actions: QWidget) -> QWidget:
+    """Judul halaman; `actions` (tombol) rata kanan pada baris judul."""
+    from PySide6.QtWidgets import QHBoxLayout
+
     box = QWidget()
-    lay = QVBoxLayout(box)
-    lay.setContentsMargins(0, 0, 0, 0)
-    lay.setSpacing(4)
-    lay.addWidget(label(title, "title"))
+    outer = QHBoxLayout(box)
+    outer.setContentsMargins(0, 0, 0, 0)
+    outer.setSpacing(12)
+    text = QVBoxLayout()
+    text.setSpacing(4)
+    text.addWidget(label(title, "title"))
     if subtitle:
-        lay.addWidget(label(subtitle, "subtitle"))
+        text.addWidget(label(subtitle, "subtitle"))
+    outer.addLayout(text, 1)
+    for w in actions:
+        outer.addWidget(w, 0, Qt.AlignTop)
     return box
 
 
