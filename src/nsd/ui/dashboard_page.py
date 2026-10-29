@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import platform
 
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QFormLayout, QFrame, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
+
+from nsd.ui import theme
+from nsd.ui.labels import ROLE_LABELS
 
 
 class DashboardPage(QWidget):
@@ -11,25 +14,50 @@ class DashboardPage(QWidget):
 
     def __init__(self, ctx) -> None:
         super().__init__()
-        lay = QVBoxLayout(self)
-        lay.addWidget(QLabel("<h2>Network Sharing Doctor</h2>"))
         elevated = ctx.adapter.is_elevated()
-        lay.addWidget(QLabel(f"Komputer: {platform.node()}"))
-        lay.addWidget(QLabel(f"Sistem: {platform.system()} {platform.release()} (build {platform.version()})"))
-        lay.addWidget(QLabel(f"Peran bawaan: {ctx.settings.get('role')}"))
-        lay.addWidget(QLabel(f"Hak administrator: {'ya' if elevated else 'tidak'}"))
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(32, 28, 32, 28)
+        body = QWidget()
+        body.setMaximumWidth(720)
+        lay = QVBoxLayout(body)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(16)
+
+        lay.addWidget(theme.header(
+            "Beranda", "Cari penyebab printer atau folder bersama yang gagal tersambung di jaringan lokal."))
+
+        panel = QFrame()
+        panel.setProperty("role", "panel")
+        form = QFormLayout(panel)
+        form.setContentsMargins(16, 14, 16, 14)
+        form.setVerticalSpacing(10)
+        form.setLabelAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        for name, value in (
+            ("Komputer", platform.node()),
+            ("Sistem", f"{platform.system()} {platform.release()} (build {platform.version()})"),
+            ("Peran bawaan", ROLE_LABELS.get(ctx.settings.get("role"), str(ctx.settings.get("role")))),
+            ("Hak administrator", "Ya" if elevated else "Tidak"),
+        ):
+            form.addRow(theme.label(name, "caption"), theme.label(value, selectable=True))
+        lay.addWidget(panel)
+
         if not elevated:
-            note = QLabel("Berjalan tanpa hak administrator: pemeriksaan tertentu terbatas. "
-                          "Diagnosis tetap berjalan dan hasil yang tidak dapat diperiksa ditandai 'Belum diperiksa'.")
-            note.setWordWrap(True)
-            lay.addWidget(note)
+            lay.addWidget(theme.callout(
+                "Berjalan tanpa hak administrator",
+                "Pemeriksaan tertentu terbatas. Diagnosis tetap berjalan, dan hasil yang tidak dapat diperiksa "
+                "ditandai 'Belum diperiksa'."))
         for w in ctx.warnings:
-            lay.addWidget(QLabel("⚠ " + w))
-        mode = QLabel("Mode: Fase 1 — hanya membaca. Aplikasi ini tidak mengubah pengaturan Windows.")
-        mode.setWordWrap(True)
-        lay.addWidget(mode)
+            lay.addWidget(theme.callout("Peringatan", w))
+
+        row = QHBoxLayout()
         btn = QPushButton("Scan && Diagnosa")
-        btn.setMinimumHeight(48)
+        theme.set_role(btn, "primary")
+        btn.setMinimumHeight(44)
+        btn.setDefault(True)
         btn.clicked.connect(self.start_scan.emit)
-        lay.addWidget(btn)
-        lay.addStretch(1)
+        row.addWidget(btn)
+        row.addWidget(theme.label("Fase 1: hanya membaca. Tidak ada pengaturan Windows yang diubah.", "caption"), 1)
+        lay.addLayout(row)
+
+        outer.addWidget(body)
+        outer.addStretch(1)

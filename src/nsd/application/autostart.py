@@ -1,4 +1,4 @@
-"""Autostart monitor lewat Windows Task Scheduler (schtasks) — bukan Windows Service.
+"""Autostart monitor lewat Windows Task Scheduler (schtasks), bukan Windows Service.
 
 Dua mode:
 * logon-user  (default, aman): jalan saat logon sebagai pengguna yang memasang, hak terbatas.

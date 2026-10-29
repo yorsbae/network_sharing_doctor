@@ -31,7 +31,7 @@ def make_redactor(o: ScanOutcome) -> Redactor:
 def build_text(o: ScanOutcome, redact: bool = True) -> str:
     L: list[str] = []
     a = L.append
-    a(f"LAPORAN DIAGNOSIS — Network Sharing Doctor v{__version__}")
+    a(f"LAPORAN DIAGNOSIS: Network Sharing Doctor v{__version__}")
     a(f"ID kasus   : {o.case_id}")
     a(f"Waktu (UTC): {o.started}")
     osi = o.os_info or {}
@@ -50,7 +50,7 @@ def build_text(o: ScanOutcome, redact: bool = True) -> str:
             continue
         a(f"== {heading} ({len(rows)}) ==")
         for c in rows:
-            a(f"{status.tag} {c.id} — {c.title}  [{c.layer.value}]")
+            a(f"{status.tag} {c.id}: {c.title}  [{c.layer.value}]")
             a(f"    {c.detail}")
             ev = {k: v for k, v in c.evidence.items() if k not in ("events",)}
             if ev and status in (Status.FAIL, Status.WARNING):
@@ -73,7 +73,7 @@ def build_text(o: ScanOutcome, redact: bool = True) -> str:
             else:
                 params = {k: v for k, v in act.items() if k != "operation"}
                 a(f"   Tindakan yang DISARANKAN (belum diterapkan): {act['operation']} {params}")
-        a(f"   Status: {f.lifecycle} — {f.decision_text}")
+        a(f"   Status: {f.lifecycle}. {f.decision_text}")
         if any(x["operation"] != "advise" for x in f.actions):
             a(f"   Butuh admin: {'ya' if f.requires_admin else 'tidak'}; rollback: {f.rollback.get('type')}")
             a("   Verifikasi setelah perbaikan: " + ", ".join(f.verification))

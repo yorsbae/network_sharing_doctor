@@ -1,4 +1,4 @@
-"""Eksekutor perbaikan (Fase 2) — saat ini HANYA `start_service` untuk layanan di allowlist.
+"""Eksekutor perbaikan (Fase 2). Saat ini HANYA `start_service` untuk layanan di allowlist.
 
 Urutan wajib (vision B §11): gerbang kebijakan → baca keadaan awal → SNAPSHOT tersimpan →
 terapkan → VERIFIKASI ulang → catat audit. Tidak ada klaim "berhasil" tanpa verifikasi.

@@ -41,7 +41,7 @@ class Strategy(str, Enum):
     PER_JOB = "per_job"                  # DEVMODE per dokumen; tanpa admin, tanpa server
     CLIENT_LOCAL_FORM = "client_form"    # formulir di spooler client (admin client)
     LOCAL_QUEUE = "local_queue"          # antrean lokal di client yang menunjuk ke printer/share
-    SERVER_FORM = "server_form"          # formulir di server (admin SERVER) — bukan jalur utama
+    SERVER_FORM = "server_form"          # formulir di server (admin SERVER), bukan jalur utama
 
 
 @dataclass(frozen=True)
@@ -114,7 +114,7 @@ def assess(paper: PaperSize, caps: DriverCaps) -> list[StrategyOption]:
                 "Memasang driver dapat dibatasi kebijakan Point and Print / hak admin.")
     opts.append(StrategyOption(Strategy.LOCAL_QUEUE, av3, caps.connection is Connection.SHARED, True, False, tuple(why3)))
 
-    # 4) Server — hanya informasi, bukan jalur utama
+    # 4) Server: hanya informasi, bukan jalur utama
     opts.append(StrategyOption(
         Strategy.SERVER_FORM, Availability.UNKNOWN, True, False, False,
         ("Membutuhkan hak admin di SERVER dan memengaruhi semua client.",

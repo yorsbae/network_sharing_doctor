@@ -8,6 +8,8 @@ from PySide6.QtWidgets import (QComboBox, QDialog, QDoubleSpinBox, QFileDialog, 
 
 from nsd.app_config import data_dir
 from nsd.paper import Margins, Orientation, PageLayout, PaperError, PaperSize, PaperStore
+from nsd.ui import theme
+from nsd.ui.paper_fields import SizeFields
 from nsd.printing import PrintError, PrintJob, RulerTestJob, available_printers, print_job, render_preview
 from nsd.printing.render import PDF_LABEL, printer_hard_margin_mm
 
@@ -22,17 +24,18 @@ class AddPaperDialog(QDialog):
         self.store, self.added = store, None
         form = QFormLayout(self)
         self.name = QLineEdit(); self.name.setPlaceholderText("mis. F4 Kantor")
-        self.w = QDoubleSpinBox(); self.w.setRange(10, 2000); self.w.setValue(210); self.w.setSuffix(" mm")
-        self.h = QDoubleSpinBox(); self.h.setRange(10, 2000); self.h.setValue(330); self.h.setSuffix(" mm")
-        form.addRow("Nama", self.name); form.addRow("Lebar", self.w); form.addRow("Tinggi", self.h)
+        self.size = SizeFields()
+        self.w, self.h = self.size.w, self.size.h
+        form.addRow("Nama", self.name); form.addRow("Lebar x tinggi", self.size)
         row = QHBoxLayout()
         ok, no = QPushButton("Simpan"), QPushButton("Batal")
+        theme.set_role(ok, "primary"); ok.setDefault(True)
         ok.clicked.connect(self._save); no.clicked.connect(self.reject)
         row.addStretch(1); row.addWidget(ok); row.addWidget(no); form.addRow(row)
 
     def _save(self) -> None:
         try:
-            self.added = self.store.add(self.name.text(), self.w.value(), self.h.value())
+            self.added = self.store.add(self.name.text(), *self.size.mm())
         except PaperError as exc:
             QMessageBox.warning(self, "Ukuran tidak valid", str(exc)); return
         self.accept()
@@ -55,14 +58,15 @@ class PrintLayoutDialog(QDialog):
         self.copies = QSpinBox(); self.copies.setRange(1, 99)
         self.note = QLabel(); self.note.setWordWrap(True)
         self.preview = QLabel(alignment=Qt.AlignCenter); self.preview.setMinimumSize(380, 460)
-        self.preview.setStyleSheet("background:#d1d5db;")
+        theme.set_role(self.preview, "canvas")
         self.pager = QLabel("")
-        prev, nxt = QPushButton("◀"), QPushButton("▶")
+        prev, nxt = QPushButton("Sebelumnya"), QPushButton("Berikutnya")
         prev.clicked.connect(self._prev_page); nxt.clicked.connect(self._next_page)
 
         add = QPushButton("Tambah ukuran…"); add.clicked.connect(self._add_paper)
         ruler = QPushButton("Cetak halaman uji…"); ruler.clicked.connect(self._print_ruler)
         self.go = QPushButton("Cetak"); self.go.setDefault(True); self.go.clicked.connect(self._print)
+        theme.set_role(self.go, "primary")
         cancel = QPushButton("Tutup"); cancel.clicked.connect(self.reject)
 
         gw = QWidget(self)                       # induk eksplisit: hindari objek tanpa pemilik

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import QRectF, QSizeF, Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPen, QTextDocument
+from PySide6.QtGui import QAbstractTextDocumentLayout, QColor, QFont, QPainter, QPalette, QPen, QTextDocument
 
 from nsd.paper import PageLayout
 
@@ -52,7 +52,10 @@ class TextJob(PrintJob):
         painter.save()
         painter.setClipRect(QRectF(0, 0, ctx.width, ctx.height))
         painter.translate(0, -index * ctx.height)
-        self._doc.drawContents(painter, QRectF(0, index * ctx.height, ctx.width, ctx.height))
+        paint_ctx = QAbstractTextDocumentLayout.PaintContext()
+        paint_ctx.palette.setColor(QPalette.Text, QColor("black"))     # tinta hitam di kertas putih, apa pun temanya
+        paint_ctx.clip = QRectF(0, index * ctx.height, ctx.width, ctx.height)
+        self._doc.documentLayout().draw(painter, paint_ctx)
         painter.restore()
 
 
@@ -97,3 +100,35 @@ class RulerTestJob(PrintJob):
                          "Garis putus merah = tepi kertas. Angka pada penggaris = sentimeter; jarak antar tanda besar = 50 mm. "
                          "Bila garis merah terpotong, printer tidak menerima ukuran ini apa adanya.")
         painter.restore()
+
+
+class PdfJob(PrintJob):
+    """Berkas PDF (mis. hasil cetak dari browser). Tiap halaman dimuat pas ke area isi, rasio dijaga."""
+    _RENDER_DPI = 200
+
+    def __init__(self, path: str, title: str | None = None) -> None:
+        from pathlib import Path
+
+        from PySide6.QtPdf import QPdfDocument
+
+        self.path = str(path)
+        self.title = title or Path(path).stem
+        self._doc = QPdfDocument()
+        if self._doc.load(self.path) != QPdfDocument.Error.None_:
+            raise ValueError(f"PDF tidak dapat dibuka: {self.path}")
+
+    def prepare(self, ctx: RenderCtx) -> int:
+        return max(1, self._doc.pageCount())
+
+    def paint(self, painter: QPainter, ctx: RenderCtx, index: int) -> None:
+        from PySide6.QtCore import QSize
+
+        if not 0 <= index < self._doc.pageCount():
+            return
+        pt = self._doc.pagePointSize(index)
+        if pt.width() <= 0 or pt.height() <= 0:
+            return
+        fit = min(ctx.width / pt.width(), ctx.height / pt.height())
+        w, h = pt.width() * fit, pt.height() * fit
+        px = QSize(max(1, round(pt.width() / 72 * self._RENDER_DPI)), max(1, round(pt.height() / 72 * self._RENDER_DPI)))
+        painter.drawImage(QRectF((ctx.width - w) / 2, 0, w, h), self._doc.render(index, px))

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import (QHBoxLayout, QMessageBox, QPushButton, QPlainTextEdit, QTableWidget,
-                               QTableWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QAbstractItemView, QHBoxLayout, QHeaderView, QMessageBox, QPlainTextEdit,
+                               QPushButton, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem, QVBoxLayout,
+                               QWidget)
+
+from nsd.ui import theme
 
 
 class HistoryPage(QWidget):
@@ -9,16 +13,50 @@ class HistoryPage(QWidget):
         super().__init__()
         self.ctx = ctx
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(32, 28, 32, 28)
+        lay.setSpacing(14)
+        days = ctx.settings.get("retention_days")
+        lay.addWidget(theme.header("Riwayat", f"Kasus tersimpan di komputer ini selama {days} hari, lalu dihapus otomatis."))
+
         row = QHBoxLayout()
-        b1 = QPushButton("Muat ulang"); b1.clicked.connect(self.reload)
-        b2 = QPushButton("Hapus seluruh riwayat…"); b2.clicked.connect(self._clear)
-        row.addWidget(b1); row.addWidget(b2); row.addStretch(1)
+        self.refresh_btn = QPushButton("Muat ulang")
+        self.refresh_btn.clicked.connect(self.reload)
+        self.clear_btn = QPushButton("Hapus seluruh riwayat…")
+        theme.set_role(self.clear_btn, "danger")
+        self.clear_btn.clicked.connect(self._clear)
+        row.addWidget(self.refresh_btn)
+        row.addStretch(1)
+        row.addWidget(self.clear_btn)
         lay.addLayout(row)
+
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(["ID", "Waktu (UTC)", "Peran", "Target", "Hasil"])
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.table.setAlternatingRowColors(True)
+        self.table.verticalHeader().setVisible(False)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.table.setColumnWidth(0, 130)
+        self.table.setColumnWidth(1, 170)
+        self.table.setColumnWidth(2, 80)
+        self.table.setColumnWidth(3, 200)
         self.table.itemSelectionChanged.connect(self._show)
         self.detail = QPlainTextEdit(readOnly=True)
-        lay.addWidget(self.table, 2); lay.addWidget(self.detail, 1)
+        self.detail.setPlaceholderText("Pilih satu kasus untuk melihat bukti pemeriksaannya.")
+        split = QSplitter(Qt.Vertical)
+        split.addWidget(self.table)
+        split.addWidget(self.detail)
+        split.setSizes([320, 200])
+
+        self.empty = theme.label("Belum ada riwayat. Hasil Scan & Diagnosa tersimpan di sini.", "empty")
+        self.empty.setAlignment(Qt.AlignCenter)
+        self.views = QStackedWidget()
+        self.views.addWidget(self.empty)
+        self.views.addWidget(split)
+        lay.addWidget(self.views, 1)
         self.reload()
 
     def reload(self) -> None:
@@ -26,8 +64,15 @@ class HistoryPage(QWidget):
         self.table.setRowCount(len(rows))
         for i, r in enumerate(rows):
             for j, key in enumerate(("id", "started_at", "role", "target", "status")):
-                self.table.setItem(i, j, QTableWidgetItem(str(r[key])))
+                text = str(r[key])
+                if key == "status":
+                    text = text.replace("_", " ").capitalize()
+                elif key == "role":
+                    text = text.capitalize()
+                self.table.setItem(i, j, QTableWidgetItem(text))
         self.detail.clear()
+        self.views.setCurrentIndex(1 if rows else 0)
+        self.clear_btn.setEnabled(bool(rows))
 
     def _show(self) -> None:
         sel = self.table.selectedItems()
@@ -43,6 +88,13 @@ class HistoryPage(QWidget):
         self.detail.setPlainText("\n".join(lines))
 
     def _clear(self) -> None:
-        if QMessageBox.question(self, "Hapus riwayat", "Hapus semua riwayat kasus dan log audit? Tindakan ini permanen.") \
-                == QMessageBox.Yes:
-            self.ctx.cases.clear_history(); self.reload()
+        box = QMessageBox(QMessageBox.Warning, "Hapus riwayat",
+                          "Hapus semua riwayat kasus dan log audit? Tindakan ini permanen.", QMessageBox.NoButton, self)
+        confirm = box.addButton("Hapus riwayat", QMessageBox.DestructiveRole)
+        cancel = box.addButton("Batal", QMessageBox.RejectRole)
+        box.setDefaultButton(cancel)
+        box.setEscapeButton(cancel)
+        box.exec()
+        if box.clickedButton() is confirm:
+            self.ctx.cases.clear_history()
+            self.reload()

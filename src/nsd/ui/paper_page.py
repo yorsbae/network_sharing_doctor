@@ -8,6 +8,8 @@ from PySide6.QtWidgets import (QComboBox, QDoubleSpinBox, QFormLayout, QGroupBox
 
 from nsd.app_config import data_dir
 from nsd.paper import Margins, Orientation, PageLayout, PaperError, PaperStore
+from nsd.ui import theme
+from nsd.ui.paper_fields import SizeFields
 
 
 class PagePreview(QWidget):
@@ -25,10 +27,13 @@ class PagePreview(QWidget):
     def paintEvent(self, _event) -> None:  # noqa: N802
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        p.fillRect(self.rect(), QColor("#e5e7eb"))
+        t = theme.tokens()
+        p.fillRect(self.rect(), QColor(t.canvas))
         lay = self.layout_
         if lay is None:
+            p.setPen(QColor(t.text))
             p.drawText(self.rect(), Qt.AlignCenter, "Pilih ukuran kertas")
+            p.end()
             return
         pw, ph = lay.page_mm
         pad = 24
@@ -36,14 +41,15 @@ class PagePreview(QWidget):
         x0, y0 = (self.width() - pw * k) / 2, (self.height() - ph * k - 20) / 2
         page = QRectF(x0, y0, pw * k, ph * k)
         p.fillRect(page.translated(3, 3), QColor(0, 0, 0, 40))
-        p.fillRect(page, QColor("white"))
-        p.setPen(QPen(QColor("#111827"), 1)); p.drawRect(page)
+        p.fillRect(page, QColor("white"))                 # kertas selalu putih, juga pada tema gelap
+        ink = theme.LIGHT                                 # isi di atas kertas memakai token terang
+        p.setPen(QPen(QColor(ink.text), 1)); p.drawRect(page)
         m = lay.margins
         body = QRectF(x0 + m.left * k, y0 + m.top * k, lay.content_width_mm * k, lay.content_height_mm * k)
-        pen = QPen(QColor("#2563eb"), 1, Qt.DashLine); p.setPen(pen); p.drawRect(body)
-        p.setPen(QColor("#6b7280")); p.setFont(QFont("", 9))
+        pen = QPen(QColor(ink.primary), 1, Qt.DashLine); p.setPen(pen); p.drawRect(body)
+        p.setPen(QColor(ink.muted)); p.setFont(QFont("", 9))
         p.drawText(body, Qt.AlignCenter, f"Area isi\n{lay.content_width_mm:g} × {lay.content_height_mm:g} mm")
-        p.setPen(QColor("#111827"))
+        p.setPen(QColor(t.text))
         p.drawText(QRectF(0, page.bottom() + 4, self.width(), 18), Qt.AlignCenter,
                    f"{pw:g} × {ph:g} mm")
         p.end()
@@ -59,16 +65,20 @@ class PaperPage(QWidget):
         self.orient = QComboBox(); self.orient.addItems(["Potret", "Lanskap"])
         self.margin = self._spin(0, 200, 10, " mm")
         self.scale = self._spin(10, 400, 100, " %")
-        self.info = QLabel(); self.info.setWordWrap(True)
+        self.info = theme.label("", "caption")
 
         self.name = QLineEdit(); self.name.setPlaceholderText("mis. F4 Kantor")
-        self.w = self._spin(10, 2000, 210, " mm"); self.h = self._spin(10, 2000, 330, " mm")
+        self.size = SizeFields()
+        self.w, self.h = self.size.w, self.size.h
         add, rem = QPushButton("Tambah ukuran"), QPushButton("Hapus ukuran terpilih")
+        theme.set_role(add, "primary")
+        theme.set_role(rem, "danger")
         add.clicked.connect(self._add); rem.clicked.connect(self._remove)
+        self.name.returnPressed.connect(self._add)
 
         box = QGroupBox("Ukuran kertas baru (disimpan lokal di komputer ini)")
         form = QFormLayout(box)
-        form.addRow("Nama", self.name); form.addRow("Lebar", self.w); form.addRow("Tinggi", self.h)
+        form.addRow("Nama", self.name); form.addRow("Ukuran", self.size)
         form.addRow(add)
 
         opts = QGroupBox("Tata letak")
@@ -76,15 +86,18 @@ class PaperPage(QWidget):
         of.addRow("Orientasi", self.orient); of.addRow("Margin", self.margin); of.addRow("Skala", self.scale)
 
         tp = QPushButton("Cetak halaman uji…"); tp.clicked.connect(self._test_print)
-        note = QLabel("Ukuran ini tersimpan di client dan tidak mengubah server. Apakah driver printer "
-                      "menerimanya belum diperiksa di sini; lihat Fase 3 di progres.md.")
-        note.setWordWrap(True)
+        note = theme.label("Ukuran ini tersimpan di komputer ini dan tidak mengubah server. Apakah driver printer "
+                           "menerimanya belum diperiksa di sini. Cetak halaman uji, lalu ukur hasilnya dengan penggaris.",
+                           "caption")
 
         left = QVBoxLayout()
-        left.addWidget(QLabel("Ukuran kertas")); left.addWidget(self.papers, 1); left.addWidget(rem)
+        self.papers.setMinimumHeight(150)
+        left.addWidget(theme.label("Ukuran kertas", "section")); left.addWidget(self.papers, 1); left.addWidget(rem)
         left.addWidget(box); left.addWidget(opts); left.addWidget(tp); left.addWidget(self.info); left.addWidget(note)
         root = QHBoxLayout(self)
-        lw = QWidget(); lw.setLayout(left); lw.setFixedWidth(340)
+        root.setContentsMargins(24, 24, 24, 24)
+        root.setSpacing(20)
+        lw = QWidget(); lw.setLayout(left); lw.setFixedWidth(410)
         root.addWidget(lw); root.addWidget(self.preview, 1)
 
         self.papers.currentRowChanged.connect(self._refresh)
@@ -131,7 +144,7 @@ class PaperPage(QWidget):
 
     def _add(self) -> None:
         try:
-            p = self.store.add(self.name.text(), self.w.value(), self.h.value())
+            p = self.store.add(self.name.text(), *self.size.mm())
         except PaperError as exc:
             QMessageBox.warning(self, "Ukuran tidak valid", str(exc)); return
         self.name.clear(); self._reload(p.name)

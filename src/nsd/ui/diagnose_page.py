@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+from html import escape
+
 from PySide6.QtCore import QThread, Qt
-from PySide6.QtGui import QGuiApplication
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton, QSplitter,
+from PySide6.QtGui import QBrush, QColor, QGuiApplication
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog, QGridLayout, QHBoxLayout, QLineEdit,
+                               QMessageBox, QPlainTextEdit, QProgressBar, QPushButton, QSplitter, QStackedWidget,
                                QTextBrowser, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from nsd.application.report_service import build_json, build_text
 from nsd.models import Role, ScanRequest, Status, TargetType
 from nsd.security.allowlist import ValidationError
+from nsd.ui import theme
+from nsd.ui.labels import ROLE_LABELS
 from nsd.ui.widgets.worker import ScanWorker
 
 _HEAD = [(Status.FAIL, "Masalah ditemukan"), (Status.WARNING, "Peringatan"),
          (Status.PASS, "Lulus"), (Status.UNKNOWN, "Belum diperiksa")]
+
+_EMPTY = "Belum ada hasil. Isi target di atas, lalu klik Scan & Diagnosa."
 
 
 class ExportDialog(QDialog):
@@ -24,6 +30,8 @@ class ExportDialog(QDialog):
         self.resize(760, 520)
         self.o = outcome
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(20, 20, 20, 20)
+        lay.setSpacing(12)
         self.chk = QCheckBox("Samarkan nama komputer, IP, share, printer, dan pengguna")
         self.chk.setChecked(redact_default)
         self.chk.toggled.connect(self._refresh)
@@ -33,13 +41,17 @@ class ExportDialog(QDialog):
         self.fmt.currentIndexChanged.connect(self._refresh)
         lay.addWidget(self.fmt)
         self.view = QPlainTextEdit(readOnly=True)
-        lay.addWidget(self.view)
+        lay.addWidget(self.view, 1)
         row = QHBoxLayout()
         save = QPushButton("Simpan…")
+        theme.set_role(save, "primary")
+        save.setDefault(True)
         save.clicked.connect(self._save)
         close = QPushButton("Tutup")
         close.clicked.connect(self.reject)
-        row.addStretch(1); row.addWidget(save); row.addWidget(close)
+        row.addStretch(1)
+        row.addWidget(close)
+        row.addWidget(save)
         lay.addLayout(row)
         self._refresh()
 
@@ -64,33 +76,93 @@ class DiagnosePage(QWidget):
         super().__init__()
         self.ctx, self.outcome, self._thread, self._worker = ctx, None, None, None
         lay = QVBoxLayout(self)
-        form = QFormLayout()
-        self.role = QComboBox(); self.role.addItems(["Client (komputer yang mengakses)", "Server (komputer yang membagikan)"])
+        lay.setContentsMargins(32, 28, 32, 20)
+        lay.setSpacing(14)
+        lay.addWidget(theme.header(
+            "Diagnosa", "Isi target yang gagal diakses, lalu jalankan pemeriksaan. Sistem tidak diubah."))
+
+        formbox = QWidget()
+        formbox.setMaximumWidth(720)
+        grid = QGridLayout(formbox)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(16)
+        grid.setVerticalSpacing(4)
+        self.role = QComboBox()
+        for text in ROLE_LABELS.values():
+            self.role.addItem(text)
         self.role.setCurrentIndex(0 if ctx.settings.get("role") == "client" else 1)
-        self.ttype = QComboBox(); self.ttype.addItems(["Printer dan folder", "Printer", "Folder"])
-        self.host = QLineEdit(); self.host.setPlaceholderText("Nama komputer atau alamat IP server")
-        self.share = QLineEdit(); self.share.setPlaceholderText("Nama share folder / printer")
-        self.error = QLineEdit(); self.error.setPlaceholderText("Kode/pesan error persis, mis. 0x0000011B (opsional)")
-        form.addRow("Peran komputer ini", self.role); form.addRow("Jenis target", self.ttype)
-        form.addRow("Server / target", self.host); form.addRow("Nama share", self.share)
-        form.addRow("Error", self.error)
-        lay.addLayout(form)
+        self.ttype = QComboBox()
+        self.ttype.addItems(["Printer dan folder", "Printer", "Folder"])
+        self.host = QLineEdit()
+        self.host.setPlaceholderText("Nama komputer atau alamat IP server")
+        self.share = QLineEdit()
+        self.share.setPlaceholderText("Nama share folder / printer")
+        self.error = QLineEdit()
+        self.error.setPlaceholderText("Kode/pesan error persis, mis. 0x0000011B (opsional)")
+        for edit in (self.host, self.share, self.error):
+            edit.returnPressed.connect(self.start)
+        for row_, col, text, field, span in (
+            (0, 0, "Peran komputer ini", self.role, 1), (0, 1, "Jenis target", self.ttype, 1),
+            (2, 0, "Server / target", self.host, 1), (2, 1, "Nama share", self.share, 1),
+            (4, 0, "Error", self.error, 2),
+        ):
+            cap = theme.label(text, "caption")
+            cap.setBuddy(field)
+            if row_:
+                cap.setContentsMargins(0, 8, 0, 0)
+            grid.addWidget(cap, row_, col, 1, span)
+            grid.addWidget(field, row_ + 1, col, 1, span)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        lay.addWidget(formbox)
+
         row = QHBoxLayout()
-        self.go = QPushButton("Scan && Diagnosa"); self.go.clicked.connect(self.start)
-        self.fix = QPushButton("Perbaiki Otomatis"); self.fix.setEnabled(False)
+        self.go = QPushButton("Scan && Diagnosa")
+        theme.set_role(self.go, "primary")
+        self.go.clicked.connect(self.start)
+        self.export = QPushButton("Ekspor laporan…")
+        self.export.setEnabled(False)
+        self.export.clicked.connect(self._export)
+        self.print_btn = QPushButton("Cetak…")
+        self.print_btn.setEnabled(False)
+        self.print_btn.setToolTip("Cetak laporan (Ctrl+P)")
+        self.print_btn.clicked.connect(self.print_report)
+        self.cp_id = QPushButton("Salin ID kasus")
+        self.cp_id.setEnabled(False)
+        self.cp_id.clicked.connect(self._copy_id)
+        # TODO(Fase 2): sambungkan ke RepairExecutor setelah alur perbaikan lolos uji di VM lab (lihat progres.md).
+        self.fix = QPushButton("Perbaiki Otomatis (Fase 2)")
+        self.fix.setEnabled(False)
         self.fix.setToolTip("Belum tersedia: Fase 1 bersifat baca-saja. Saran perbaikan tampil di panel penyebab.")
-        self.export = QPushButton("Ekspor laporan…"); self.export.setEnabled(False); self.export.clicked.connect(self._export)
-        self.cp_id = QPushButton("Salin ID kasus"); self.cp_id.setEnabled(False); self.cp_id.clicked.connect(self._copy_id)
-        for b in (self.go, self.fix, self.export, self.cp_id):
-            row.addWidget(b)
+        row.addWidget(self.go)
+        row.addWidget(self.export)
+        row.addWidget(self.print_btn)
+        row.addWidget(self.cp_id)
+        row.addStretch(1)
+        row.addWidget(self.fix)
         lay.addLayout(row)
-        self.bar = QProgressBar(); self.bar.setVisible(False)
-        self.status = QLabel(""); lay.addWidget(self.bar); lay.addWidget(self.status)
-        split = QSplitter(Qt.Vertical)
-        self.tree = QTreeWidget(); self.tree.setHeaderLabels(["Pemeriksaan", "Hasil", "Penjelasan"])
+
+        self.bar = QProgressBar()
+        self.bar.setVisible(False)
+        self.bar.setTextVisible(False)
+        self.status = theme.label("", "caption")
+        lay.addWidget(self.bar)
+        lay.addWidget(self.status)
+
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabels(["Pemeriksaan", "Hasil", "Penjelasan"])
+        self.tree.setAlternatingRowColors(True)
         self.causes = QTextBrowser()
-        split.addWidget(self.tree); split.addWidget(self.causes); split.setSizes([320, 200])
-        lay.addWidget(split, 1)
+        split = QSplitter(Qt.Vertical)
+        split.addWidget(self.tree)
+        split.addWidget(self.causes)
+        split.setSizes([320, 200])
+        self.empty = theme.label(_EMPTY, "empty")
+        self.empty.setAlignment(Qt.AlignCenter)
+        self.results = QStackedWidget()
+        self.results.addWidget(self.empty)
+        self.results.addWidget(split)
+        lay.addWidget(self.results, 1)
 
     def start(self) -> None:
         if self._thread is not None:
@@ -101,50 +173,92 @@ class DiagnosePage(QWidget):
                               self.host.text(), self.share.text(), self.error.text())
             svc = self.ctx.scan_service()
         except ValidationError as exc:
-            QMessageBox.warning(self, "Input tidak valid", str(exc)); return
-        self.go.setEnabled(False); self.bar.setVisible(True); self.bar.setValue(0); self.status.setText("Memeriksa…")
+            QMessageBox.warning(self, "Input tidak valid", str(exc))
+            return
+        self.go.setEnabled(False)
+        self.bar.setVisible(True)
+        self.bar.setValue(0)
+        self.status.setText("Memeriksa…")
+        self.empty.setText("Memeriksa target. Hasil muncul di sini setelah selesai.")
+        self.results.setCurrentIndex(0)
         self._thread, self._worker = QThread(), ScanWorker(svc, req)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
-        self._worker.progress.connect(lambda d, t, n: (self.bar.setMaximum(t), self.bar.setValue(d)))
-        self._worker.finished.connect(self._done); self._worker.failed.connect(self._failed)
+        self._worker.progress.connect(self._progress)
+        self._worker.finished.connect(self._done)
+        self._worker.failed.connect(self._failed)
         self._thread.start()
 
+    def _progress(self, done: int, total: int, name: str) -> None:
+        self.bar.setMaximum(total)
+        self.bar.setValue(done)
+        self.status.setText(f"Memeriksa ({done} dari {total}): {name}")
+
     def _cleanup(self) -> None:
-        self._thread.quit(); self._thread.wait()
+        self._thread.quit()
+        self._thread.wait()
         self._thread = self._worker = None
-        self.go.setEnabled(True); self.bar.setVisible(False)
+        self.go.setEnabled(True)
+        self.bar.setVisible(False)
 
     def _failed(self, msg: str) -> None:
-        self._cleanup(); self.status.setText("Pemeriksaan gagal dijalankan."); QMessageBox.critical(self, "Kesalahan", msg)
+        self._cleanup()
+        self.status.setText("Pemeriksaan gagal dijalankan.")
+        self.empty.setText("Pemeriksaan tidak dapat dijalankan. Periksa pesan kesalahan, lalu coba lagi.")
+        self.results.setCurrentIndex(0)
+        QMessageBox.critical(self, "Kesalahan", msg)
 
     def _done(self, o) -> None:
-        self._cleanup(); self.outcome = o
+        self._cleanup()
+        self.outcome = o
         self.status.setText(f"Selesai. ID kasus {o.case_id}. Tidak ada perubahan dilakukan pada sistem.")
-        self.export.setEnabled(True); self.cp_id.setEnabled(True)
+        self.export.setEnabled(True)
+        self.print_btn.setEnabled(True)
+        self.cp_id.setEnabled(True)
         self.tree.clear()
         for st, title in _HEAD:
             rows = [c for c in o.checks if c.status is st]
             if not rows:
                 continue
-            top = QTreeWidgetItem([f"{title} ({len(rows)})"]); self.tree.addTopLevelItem(top)
+            color = QBrush(QColor(theme.status_color(st)))
+            top = QTreeWidgetItem([f"{title} ({len(rows)})"])
+            top.setForeground(0, color)
+            font = top.font(0)
+            font.setBold(True)
+            top.setFont(0, font)
+            self.tree.addTopLevelItem(top)
             for c in rows:
-                top.addChild(QTreeWidgetItem([c.title, f"{st.tag}", c.detail]))
+                item = QTreeWidgetItem([c.title, st.tag, c.detail])
+                item.setForeground(1, color)
+                top.addChild(item)
             top.setExpanded(st in (Status.FAIL, Status.WARNING))
         for i in range(3):
             self.tree.resizeColumnToContents(i)
         html = []
         for f in o.findings:
-            acts = "".join(f"<li>{a['text']}</li>" if a["operation"] == "advise" else
-                           f"<li><b>Disarankan (belum diterapkan):</b> {a['operation']}</li>" for a in f.actions)
-            html.append(f"<h4>{f.title} <small>(keyakinan {f.confidence}, risiko {f.risk})</small></h4>"
-                        f"<p>{f.explanation}</p><ul>{acts}</ul><p><i>{f.decision_text}</i></p>")
+            acts = "".join(f"<li>{escape(a['text'])}</li>" if a["operation"] == "advise" else
+                           f"<li><b>Disarankan (belum diterapkan):</b> {escape(a['operation'])}</li>" for a in f.actions)
+            html.append(f"<h4>{escape(f.title)} <small>(keyakinan {escape(str(f.confidence))}, "
+                        f"risiko {escape(str(f.risk))})</small></h4>"
+                        f"<p>{escape(f.explanation)}</p><ul>{acts}</ul><p><i>{escape(f.decision_text)}</i></p>")
         self.causes.setHtml("".join(html) or "<p>Tidak ada aturan yang cocok dengan bukti. Itu bukan bukti "
                             "bahwa tidak ada masalah; lihat pemeriksaan 'Belum diperiksa'.</p>")
+        self.results.setCurrentIndex(1)
 
     def _export(self) -> None:
         if self.outcome:
             ExportDialog(self.outcome, self.ctx.settings.get("redact_exports"), self).exec()
+
+    def print_report(self) -> None:
+        """Buka popup Print Layout untuk laporan. Pengaturan 'samarkan' berlaku juga di sini."""
+        if self.outcome is None:
+            return
+        from nsd.printing import TextJob
+        from nsd.ui.print_dialog import PrintLayoutDialog
+
+        redact = self.ctx.settings.get("redact_exports")
+        redact = True if redact is None else bool(redact)
+        PrintLayoutDialog(TextJob(build_text(self.outcome, redact), f"Laporan {self.outcome.case_id}"), parent=self).exec()
 
     def _copy_id(self) -> None:
         if self.outcome:

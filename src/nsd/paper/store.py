@@ -11,7 +11,7 @@ MAX_CUSTOM = 100
 
 
 class PaperStore:
-    """Daftar ukuran kertas buatan pengguna, disimpan lokal di client (JSON) — tanpa server."""
+    """Daftar ukuran kertas buatan pengguna, disimpan lokal di client (JSON), tanpa server."""
 
     def __init__(self, directory: Path) -> None:
         self.path = Path(directory) / "paper_sizes.json"

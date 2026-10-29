@@ -11,7 +11,7 @@ from nsd.security.allowlist import ValidationError
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="nsd", description="Network Sharing Doctor — diagnosis (baca-saja) sharing printer & folder.")
+    p = argparse.ArgumentParser(prog="nsd", description="Network Sharing Doctor: diagnosis (baca-saja) sharing printer & folder.")
     p.add_argument("--version", action="version", version=f"nsd {__version__}")
     sub = p.add_subparsers(dest="cmd")
     sub.add_parser("gui", help="Buka antarmuka grafis (default)")
@@ -173,7 +173,7 @@ def _cmd_repair(a: argparse.Namespace) -> int:
     res = ctx.repair_executor().execute(finding, a.case, approved=True)
     for line in res.steps:
         print("  • " + line)
-    print(f"Hasil: {res.outcome} — {res.message}")
+    print(f"Hasil: {res.outcome}. {res.message}")
     if res.rollback_available:
         print(f"Untuk memulihkan: nsd rollback --case {a.case} --action {res.action_id} --confirm")
     if res.outcome == "verified":
@@ -186,7 +186,7 @@ def _cmd_rollback(a: argparse.Namespace) -> int:
 
     ctx = bootstrap()
     res = ctx.repair_executor().rollback(a.case, a.action, approved=a.confirm)
-    print(f"Hasil: {res.outcome} — {res.message}")
+    print(f"Hasil: {res.outcome}. {res.message}")
     return 0 if res.success else 1
 
 
