@@ -14,6 +14,7 @@ from nsd.ui import icons, theme
 from nsd.ui.dashboard_page import DashboardPage
 from nsd.ui.diagnose_page import DiagnosePage
 from nsd.ui.history_page import HistoryPage
+from nsd.ui.error_page import ErrorPage
 from nsd.ui.labels import case_tone
 from nsd.ui.paper_page import PaperPage
 from nsd.ui.printers_page import PrintersPage
@@ -22,9 +23,9 @@ from nsd.ui.settings_page import SettingsPage
 
 
 # (label menu, ikon). Urutan = urutan halaman pada stack.
-NAV = (("Dashboard", "home"), ("Scan printer", "scan"), ("Daftar printer", "printer"), ("Antrean cetak", "queue"),
-       ("Kertas", "paper"), ("Log", "log"), ("Pengaturan", "settings"))
-GOTO = {"scan": 1, "printers": 2, "queue": 3, "log": 5}
+NAV = (("Dashboard", "home"), ("Scan printer", "scan"), ("Kode error", "code"), ("Daftar printer", "printer"),
+       ("Antrean cetak", "queue"), ("Kertas", "paper"), ("Log", "log"), ("Pengaturan", "settings"))
+GOTO = {"scan": 1, "errors": 2, "printers": 3, "queue": 4, "log": 6}
 
 
 def _nav_icon(name: str) -> QIcon:
@@ -40,7 +41,7 @@ class MainWindow(QMainWindow):
     def __init__(self, ctx) -> None:
         super().__init__()
         self.ctx = ctx
-        self.setWindowTitle("Print Test")
+        self.setWindowTitle("Network Sharing Doctor")
         self.resize(1180, 760)
         self.setMinimumSize(980, 600)
         self.nav, self.stack = QListWidget(), QStackedWidget()
@@ -49,7 +50,8 @@ class MainWindow(QMainWindow):
         self.nav.setIconSize(QSize(18, 18))
         self.dash, self.diagnose = DashboardPage(ctx), DiagnosePage(ctx)
         self.history = HistoryPage(ctx)
-        pages = [self.dash, self.diagnose, PrintersPage(ctx), QueuePage(ctx), PaperPage(ctx), self.history,
+        self.errors = ErrorPage(ctx)
+        pages = [self.dash, self.diagnose, self.errors, PrintersPage(ctx), QueuePage(ctx), PaperPage(ctx), self.history,
                  SettingsPage(ctx)]
         for i, ((name, _ic), w) in enumerate(zip(NAV, pages)):
             self.nav.addItem(name)
@@ -63,6 +65,7 @@ class MainWindow(QMainWindow):
         self.dash.open_scan.connect(self._open_diagnose)
         self.dash.goto.connect(lambda key: self.nav.setCurrentRow(GOTO[key]))
         self.diagnose.scanned.connect(self._after_scan)
+        self.errors.scan_with.connect(self._scan_with_code)
 
         side = QFrame()
         side.setObjectName("sidebar")
@@ -82,9 +85,9 @@ class MainWindow(QMainWindow):
         tl.addWidget(self._brand_icon)
         names = QVBoxLayout()
         names.setSpacing(0)
-        brand = theme.label("Print Test", wrap=False)
+        brand = theme.label("Network Sharing Doctor", wrap=True)
         brand.setObjectName("brand")
-        version = theme.label("Diagnosa printer dan spooler", wrap=True)
+        version = theme.label("Diagnosa dan perbaikan berbagi jaringan", wrap=True)
         version.setObjectName("brandVersion")
         names.addWidget(brand)
         names.addWidget(version)
@@ -164,6 +167,11 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "PDF tidak dapat dibuka", str(exc))
             return
         PrintLayoutDialog(job, parent=self).exec()
+
+    def _scan_with_code(self, code: str) -> None:
+        self.nav.setCurrentRow(GOTO["scan"])
+        self.diagnose.error.setText(code)
+        self.diagnose.host.setFocus()
 
     def _scan_this_computer(self) -> None:
         self.nav.setCurrentRow(GOTO["scan"])

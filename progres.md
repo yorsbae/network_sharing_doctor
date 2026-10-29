@@ -51,6 +51,11 @@
 gagal / lulus / belum diperiksa". → Logikanya terpenuhi dan teruji dengan mock; **belum terbukti di Windows asli**.
 Fase 1 belum boleh dinyatakan selesai sebelum `docs/test-matrix.md` butir 1–6 dan 10 terisi.
 
+## Perbaikan otomatis di UI
+- [x] `repair_plan` (auto vs manual + alasan), `RepairDialog`, halaman Kode error, sakelar Pengaturan, relaunch admin; tes termasuk end-to-end terapkan, verifikasi, dan kembalikan dengan adapter palsu
+- [~] **Belum diuji di Windows asli**: `sc start Spooler`, UAC `runas`, task autostart. Wajib dicoba di VM sebelum dipakai pengguna
+- [ ] Cakupan masih satu jenis perbaikan. Kode seperti 0x11B/0x709/0xbcb tetap manual (perubahannya menurunkan keamanan atau butuh kredensial); keputusan ada pada pemilik proyek
+
 ## UI baru (mockup Print Test)
 - [x] Tema navy, ikon SVG, chip bernada, kartu; kontras diuji di kedua tema; pagar anti-slop diuji
 - [x] Dashboard, Daftar printer, Antrean cetak, dialog detail, Log, Pengaturan (autostart); tes halaman dengan adapter palsu; dirender offscreen dan diperiksa mata

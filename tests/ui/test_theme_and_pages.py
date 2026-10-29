@@ -83,7 +83,7 @@ class ThemeAndPages(unittest.TestCase):
         from nsd.ui.main_window import MainWindow
         win = MainWindow(self.ctx())
         self.assertEqual([win.nav.item(i).text() for i in range(win.nav.count())],
-                         ["Dashboard", "Scan printer", "Daftar printer", "Antrean cetak", "Kertas", "Log", "Pengaturan"])
+                         ["Dashboard", "Scan printer", "Kode error", "Daftar printer", "Antrean cetak", "Kertas", "Log", "Pengaturan"])
         for mode in ("light", "dark"):
             theme.apply_theme(self.app, mode)
             for i in range(win.nav.count()):
@@ -98,7 +98,7 @@ class ThemeAndPages(unittest.TestCase):
         self.assertEqual(page.results.currentIndex(), 0)
         self.assertIn("Belum ada hasil", page.empty.text())
         self.assertFalse(page.fix.isEnabled())
-        self.assertIn("Fase 2", page.fix.text())
+        self.assertIn("Perbaiki otomatis", page.fix.text())
         self.assertFalse(page.export.isEnabled())
 
     def scan(self, host: str):
@@ -137,6 +137,83 @@ class ThemeAndPages(unittest.TestCase):
         self.assertIsNotNone(win.diagnose.outcome)
         from nsd.ui.labels import case_tone
         self.assertEqual(win.side_status.text(), case_tone(win.diagnose.outcome.overall)[0])
+
+    def test_repair_dialog_gates_apply_on_setting_and_admin_and_lists_manual_steps(self):
+        from nsd.repairs.executor import finding_for_rule
+        from nsd.rules.loader import load_rules
+        from types import SimpleNamespace
+        from PySide6.QtWidgets import QPushButton
+        from nsd.ui.repair_dialog import RepairDialog
+        ctx = self.ctx()
+        rules = load_rules().rules
+        out = SimpleNamespace(case_id="c1", findings=[finding_for_rule(rules, "PRN-SPOOLER-001"),
+                                                        finding_for_rule(rules, "PRN-11B-001")])
+        dlg = RepairDialog(ctx, out)
+        self.assertEqual(len(dlg.plan.auto), 1)
+        self.assertEqual(len(dlg.plan.manual), 1)
+        self.assertFalse(dlg.apply_btn.isEnabled())            # pengaturan nonaktif secara bawaan
+        self.assertIn("Aktifkan", " ".join(b.text() for b in dlg.findChildren(QPushButton)))
+
+    def test_repair_dialog_applies_spooler_fix_end_to_end_and_can_undo(self):
+        from types import SimpleNamespace
+        from nsd.repairs.executor import finding_for_rule
+        from nsd.rules.loader import load_rules
+        from nsd.ui.repair_dialog import RepairDialog
+        from tests.fixtures.fakes import FakeServiceAdapter
+        ctx = self.ctx()
+        ad = FakeServiceAdapter({"Spooler": {"Status": "Stopped", "StartType": "Automatic"}})
+        ctx.adapter = ad
+        cid = ctx.cases.create_case("server", "printer", "localhost", "", "Win", True, "x")
+        out = SimpleNamespace(case_id=cid, findings=[finding_for_rule(load_rules().rules, "PRN-SPOOLER-001")])
+        dlg = RepairDialog(ctx, out)
+        self.assertFalse(dlg.apply_btn.isEnabled())                       # belum diaktifkan: tidak bisa diterapkan
+        self.assertEqual(ad.applied, [])
+        ctx.settings.set("execution_enabled", True)
+        dlg._refresh_prereq()
+        self.assertTrue(dlg.apply_btn.isEnabled())
+        dlg._apply()
+        deadline = time.monotonic() + 20
+        while dlg._busy and time.monotonic() < deadline:
+            self.app.processEvents(); time.sleep(0.01)
+        self.assertEqual(ad.applied, [("start_service", "Spooler")])
+        self.assertTrue(dlg.applied_any)
+        self.assertIn("verified", dlg.log.toPlainText())
+        self.assertFalse(dlg.undo.isHidden())
+        dlg._rollback()
+        deadline = time.monotonic() + 20
+        while dlg._rollbacks and time.monotonic() < deadline:
+            self.app.processEvents(); time.sleep(0.01)
+        self.assertEqual(ad.states["Spooler"]["Status"], "Stopped")
+
+    def test_repair_dialog_refuses_when_not_admin_even_if_enabled(self):
+        from types import SimpleNamespace
+        from nsd.repairs.executor import finding_for_rule
+        from nsd.rules.loader import load_rules
+        from nsd.ui.repair_dialog import RepairDialog
+        from tests.fixtures.fakes import FakeServiceAdapter
+        ctx = self.ctx()
+        ctx.adapter = FakeServiceAdapter(elevated=False)
+        ctx.settings.set("execution_enabled", True)
+        out = SimpleNamespace(case_id="x", findings=[finding_for_rule(load_rules().rules, "PRN-SPOOLER-001")])
+        dlg = RepairDialog(ctx, out)
+        self.assertFalse(dlg.apply_btn.isEnabled())
+        self.assertEqual(ctx.adapter.applied, [])
+
+    def test_error_page_finds_code_offers_scan_and_is_honest_about_unknown_codes(self):
+        from PySide6.QtWidgets import QPushButton
+        from nsd.ui.error_page import ErrorPage
+        page = ErrorPage(self.ctx())
+        got = []
+        page.scan_with.connect(got.append)
+        page.query.setText("0X11b")
+        page.search()
+        self.assertEqual(page.result.code, "0x0000011B")
+        self.assertTrue(page.result.entries)
+        next(b for b in page.findChildren(QPushButton) if b.text().startswith("Periksa dengan kode")).click()
+        self.assertEqual(got, ["0x0000011B"])
+        page.query.setText("0x00000FFF")
+        page.search()
+        self.assertEqual(page.result.entries, [])
 
     def test_printer_pages_show_honest_state_when_windows_data_is_unavailable(self):
         from nsd.application import printers

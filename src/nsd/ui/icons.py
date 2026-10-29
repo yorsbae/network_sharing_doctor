@@ -19,6 +19,7 @@ _PATHS = {
     "network": '<circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v5M12 12l-6 5M12 12l6 5"/>',
     "spooler": '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
     "refresh": '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+    "code": '<path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/>',
     "check": '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
 }
 

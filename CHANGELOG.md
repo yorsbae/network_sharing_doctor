@@ -1,5 +1,12 @@
 # Changelog
 
+## Belum dirilis: perbaikan otomatis di UI dan halaman Kode error
+- Merek UI kembali ke Network Sharing Doctor.
+- Scan printer > "Perbaiki otomatis…": pratinjau, persetujuan, penerapan lewat `RepairExecutor` (snapshot, verifikasi, audit), tombol "Kembalikan perubahan", lalu scan ulang otomatis. Sakelar di Pengaturan; tombol di dialog untuk mengaktifkan dan menjalankan ulang sebagai administrator (UAC standar).
+- Yang didukung otomatis tetap hanya menyalakan layanan Windows yang berhenti (Print Spooler, Workstation, Server). Temuan lain tampil sebagai langkah manual dengan alasan.
+- Halaman Kode error: cari kode 0x... atau kata kunci dari katalog aturan, lalu "Periksa dengan kode ini".
+- Perbaikan: kode ditulis `0X11B` (X besar) kini dikenali.
+
 ## Belum dirilis: UI baru (mockup Print Test)
 - Cangkang baru: sidebar navy dengan ikon, merek "Print Test", status sistem nyata; tema gelap bawaan (terang tersedia), token baru dan chip status bernada.
 - Halaman baru: Dashboard (kartu status, hasil terakhir, aksi cepat), Daftar printer (+ dialog detail dan cetak halaman uji), Antrean cetak (baca-saja, muat ulang 10 dtk). Scan printer, Log, dan Pengaturan ditata ulang; Pengaturan punya sakelar autostart monitor.

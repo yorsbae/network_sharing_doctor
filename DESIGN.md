@@ -1,9 +1,9 @@
 # Arah desain
 
-Alat bantu staf kantor dan administrator saat printer atau cetak bermasalah. Mockup "Print Test" (sidebar navy, aksen biru, kartu status, tabel dengan chip) adalah acuan tetap untuk bentuk dan susunan. Bagian yang tidak diatur mockup mengikuti pagar anti-slop di bawah.
+Alat bantu staf kantor dan administrator saat printer atau cetak bermasalah. Merek produk: Network Sharing Doctor. Mockup (sidebar navy, aksen biru, kartu status, tabel dengan chip) adalah acuan tetap untuk bentuk dan susunan. Bagian yang tidak diatur mockup mengikuti pagar anti-slop di bawah.
 
 ## Struktur
-Dashboard, Scan printer, Daftar printer, Antrean cetak, Kertas, Log, Pengaturan. Sidebar menampilkan status scan terakhir yang nyata, bukan label "Healthy" tetap.
+Dashboard, Scan printer, Kode error, Daftar printer, Antrean cetak, Kertas, Log, Pengaturan. Sidebar menampilkan status scan terakhir yang nyata, bukan label "Healthy" tetap.
 Bahasa antarmuka: Indonesia. Nama menu mengikuti mockup.
 
 ## Warna
@@ -20,6 +20,9 @@ Tidak ada angka atau nama contoh. Kartu dan tabel hanya menampilkan data nyata; 
 
 ## Pagar anti-slop (diuji otomatis di `tests/ui`)
 Tidak ada gradien, bayangan, `text-transform`, `letter-spacing`, panah, atau tanda pisah panjang di kode UI; kontras chip dan token diuji di kedua tema. Cincin fokus menu hanya muncul saat navigasi keyboard.
+
+## Perbaikan otomatis
+Pratinjau dulu, tidak ada perubahan tanpa klik Terapkan. Prasyarat (pengaturan aktif, hak administrator) ditampilkan sebagai status dengan tombol untuk memenuhinya. Yang tidak otomatis selalu disertai alasannya. Hasil selalu diverifikasi ulang dan scan diulang.
 
 ## Yang sengaja belum ada dari mockup
 Jeda/batalkan/hapus antrean (ini mengubah sistem; Fase 1 baca-saja), pilihan jenis pemeriksaan (mesin menjalankan semua lapisan), tab Settings pada detail printer, minimize ke tray, dan scan otomatis saat buka.

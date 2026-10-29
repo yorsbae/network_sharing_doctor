@@ -62,7 +62,7 @@ class Layer(str, Enum):
     CONTEXT = "Konteks komputer"
 
 
-_CODE_RE = re.compile(r"0x[0-9a-fA-F]{1,8}")
+_CODE_RE = re.compile(r"0[xX][0-9a-fA-F]{1,8}")
 
 
 def normalize_error_code(text: str) -> str:

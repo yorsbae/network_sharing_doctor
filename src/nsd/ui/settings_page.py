@@ -11,6 +11,7 @@ from nsd.ui.widgets.cards import panel
 class SettingsPage(QWidget):
     def __init__(self, ctx) -> None:
         super().__init__()
+        self.ctx = ctx
         s = ctx.settings
         outer = QVBoxLayout(self)
         outer.setContentsMargins(32, 28, 32, 28)
@@ -53,12 +54,29 @@ class SettingsPage(QWidget):
         days.valueChanged.connect(lambda v: s.set("retention_days", int(v)))
         f.addRow("Simpan riwayat", days)
         lay.addLayout(f)
+        lay.addWidget(self._repair_section())
         lay.addWidget(self._background_section())
 
         for w in ctx.warnings:
             lay.addWidget(theme.callout("Peringatan", w))
         outer.addWidget(body)
         outer.addStretch(1)
+
+    def _repair_section(self) -> QWidget:
+        box, bl = panel()
+        bl.addWidget(theme.label("Perbaikan otomatis", "section"))
+        self.repair = QCheckBox("Izinkan perbaikan otomatis (dengan persetujuan tiap perbaikan)")
+        self.repair.setChecked(bool(self.ctx.settings.get("execution_enabled")))
+
+        def toggled(on: bool) -> None:
+            self.ctx.settings.set("execution_enabled", bool(on))
+            self.ctx.adapter.allow_mutation = bool(on)
+
+        self.repair.toggled.connect(toggled)
+        bl.addWidget(self.repair)
+        bl.addWidget(theme.label("Saat ini hanya menyalakan layanan Windows yang berhenti. Perlu hak administrator, "
+                                 "keadaan awal disimpan, hasil diverifikasi, dan semuanya dicatat di log audit.", "caption"))
+        return box
 
     def _background_section(self) -> QWidget:
         """Jalankan monitor otomatis saat login (Task Scheduler). Hanya build terpaket di Windows."""

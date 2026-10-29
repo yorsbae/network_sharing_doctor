@@ -132,10 +132,10 @@ class DiagnosePage(QWidget):
         self.cp_id = QPushButton("Salin ID kasus")
         self.cp_id.setEnabled(False)
         self.cp_id.clicked.connect(self._copy_id)
-        # TODO(Fase 2): sambungkan ke RepairExecutor setelah alur perbaikan lolos uji di VM lab (lihat progres.md).
-        self.fix = QPushButton("Perbaiki Otomatis (Fase 2)")
+        self.fix = QPushButton("Perbaiki otomatis…")
         self.fix.setEnabled(False)
-        self.fix.setToolTip("Belum tersedia: Fase 1 bersifat baca-saja. Saran perbaikan tampil di panel penyebab.")
+        self.fix.setToolTip("Aktif setelah scan menemukan sesuatu yang bisa diperbaiki atau dipandu.")
+        self.fix.clicked.connect(self._open_repair)
         row.addWidget(self.go)
         row.addWidget(self.export)
         row.addWidget(self.print_btn)
@@ -149,6 +149,7 @@ class DiagnosePage(QWidget):
         self.summary_lay.setContentsMargins(0, 0, 0, 0)
         self.summary_lay.setSpacing(8)
         self.summary.setVisible(False)
+        self.fix.setEnabled(False)
         lay.addWidget(self.summary)
 
         self.bar = QProgressBar()
@@ -237,6 +238,12 @@ class DiagnosePage(QWidget):
         self.print_btn.setEnabled(True)
         self.cp_id.setEnabled(True)
         self._fill_summary(o)
+        from nsd.application.repair_plan import build_plan
+        from nsd.rules.loader import load_rules
+
+        plan = build_plan(o.findings, load_rules().rules)
+        self.fix.setEnabled(bool(plan.auto or plan.manual))
+        self.fix.setText(f"Perbaiki otomatis… ({len(plan.auto)})" if plan.auto else "Perbaiki otomatis…")
         self.scanned.emit()
         self.tree.clear()
         for st, title in _HEAD:
@@ -267,6 +274,16 @@ class DiagnosePage(QWidget):
         self.causes.setHtml("".join(html) or "<p>Tidak ada aturan yang cocok dengan bukti. Itu bukan bukti "
                             "bahwa tidak ada masalah; lihat pemeriksaan 'Belum diperiksa'.</p>")
         self.results.setCurrentIndex(1)
+
+    def _open_repair(self) -> None:
+        from nsd.ui.repair_dialog import RepairDialog
+
+        if self.outcome is None:
+            return
+        dlg = RepairDialog(self.ctx, self.outcome, self)
+        dlg.exec()
+        if dlg.applied_any:
+            self.start()                       # scan ulang dengan masukan yang sama untuk membuktikan hasilnya
 
     def _fill_summary(self, o) -> None:
         while self.summary_lay.count():
