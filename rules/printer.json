@@ -477,6 +477,494 @@
       "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
       "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
       "references": []
+    },
+    {
+      "id": "PRN-40-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x00000040 (nama jaringan tidak lagi tersedia)",
+      "description": "Petunjuk: error 0x00000040 (nama jaringan tidak lagi tersedia)",
+      "explanation": "Kode ini berarti nama jaringan yang dituju tidak lagi tersedia: koneksi ke komputer pemilik printer terputus atau share-nya hilang di tengah proses. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The specified network name is no longer available"
+      ],
+      "error_codes": [
+        "0x00000040"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Pastikan komputer pemilik printer menyala, tidak dalam mode tidur, terhubung ke jaringan, dan share printer masih ada. Lalu sambungkan ulang dan jalankan pemeriksaan lengkap untuk membedakan jaringan terputus dari share yang hilang."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-7C-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x0000007C saat menghubungkan printer lewat jaringan",
+      "description": "Petunjuk: error 0x0000007C saat menghubungkan printer lewat jaringan",
+      "explanation": "Kode ini dilaporkan ketika Windows gagal menghubungkan printer melalui jaringan. Penyebabnya beragam (nama share, driver, spooler, atau jaringan). Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "Printer connection error",
+        "Windows cannot connect to the printer"
+      ],
+      "error_codes": [
+        "0x0000007C"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "pesan error lengkap",
+        "tahap saat error muncul (cari printer / tambah / cetak)"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Jalankan pemeriksaan lengkap dengan nama share terisi, lalu periksa Print Spooler dan driver di client dan server sebelum menambahkan ulang printer."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-BCB-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x00000BCB saat menyambung ke printer share",
+      "description": "Petunjuk: error 0x00000BCB saat menyambung ke printer share",
+      "explanation": "Kode ini sering berkaitan dengan driver printer yang tidak ada atau tidak cocok di client atau server. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "Windows cannot connect to the printer"
+      ],
+      "error_codes": [
+        "0x00000BCB"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "versi/build Windows client dan server",
+        "driver printer di kedua sisi"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Pastikan driver yang sesuai (versi dan 32/64-bit) terpasang di server dan tersedia untuk client, dari vendor atau jalur resmi, lalu tambahkan ulang printer. Jangan menghapus driver yang masih dipakai printer lain."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Serahkan ke administrator dengan laporan ini; sertakan build Windows dan versi driver di kedua sisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-02-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x00000002 (berkas tidak ditemukan) pada printer",
+      "description": "Petunjuk: error 0x00000002 (berkas tidak ditemukan) pada printer",
+      "explanation": "Kode ini berarti berkas yang diminta tidak ditemukan. Pada printer sharing, ini bisa muncul bila berkas driver, port, atau koneksi printer tersimpan yang dirujuk sudah tidak ada. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The system cannot find the file specified"
+      ],
+      "error_codes": [
+        "0x00000002"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "pesan error lengkap",
+        "tahap saat error muncul (cari printer / tambah / cetak)"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Periksa bahwa driver dan port printer yang dirujuk masih ada; bila rusak, pasang ulang driver dari sumber resmi atau tambahkan ulang printer."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-0A-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x0000000A (lingkungan tidak benar) pada printer",
+      "description": "Petunjuk: error 0x0000000A (lingkungan tidak benar) pada printer",
+      "explanation": "Kode ini berarti lingkungan yang diminta tidak benar. Pada printer sharing, kemungkinan terkait ketidakcocokan lingkungan driver (mis. 32-bit lawan 64-bit) antara client dan server. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The environment is incorrect"
+      ],
+      "error_codes": [
+        "0x0000000A"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "versi/build Windows client dan server",
+        "arsitektur driver printer"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Bandingkan arsitektur Windows dan driver printer di client dan server, lalu pasang driver yang sesuai dari sumber resmi."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-57-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x00000057 (parameter tidak benar) pada printer",
+      "description": "Petunjuk: error 0x00000057 (parameter tidak benar) pada printer",
+      "explanation": "Kode ini berarti parameter yang diberikan tidak benar. Pada printer, nama printer, nama share, port, atau pengaturan driver yang tidak valid dapat memicunya. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The parameter is incorrect"
+      ],
+      "error_codes": [
+        "0x00000057"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "pesan error lengkap",
+        "tahap saat error muncul (cari printer / tambah / cetak)"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Periksa ejaan nama printer dan share serta port yang dipakai, lalu tambahkan ulang printer dan jalankan pemeriksaan lengkap."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-7E-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x0000007E (modul tidak ditemukan) pada printer",
+      "description": "Petunjuk: error 0x0000007E (modul tidak ditemukan) pada printer",
+      "explanation": "Kode ini berarti modul (biasanya berkas DLL) yang dibutuhkan tidak ditemukan. Pada printer, driver atau print processor yang rusak atau tidak lengkap dapat memicunya. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The specified module could not be found"
+      ],
+      "error_codes": [
+        "0x0000007E"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "driver printer",
+        "event PrintService"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Pasang ulang driver printer dari vendor atau jalur resmi. Jika berulang pada driver yang berbeda, minta administrator memeriksa integritas berkas Windows."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-7F-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x0000007F (prosedur tidak ditemukan) pada printer",
+      "description": "Petunjuk: error 0x0000007F (prosedur tidak ditemukan) pada printer",
+      "explanation": "Kode ini berarti prosedur (fungsi) yang dibutuhkan tidak ditemukan pada modul yang dimuat. Pada printer, versi driver atau DLL yang tidak cocok dengan versi Windows dapat memicunya. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The specified procedure could not be found"
+      ],
+      "error_codes": [
+        "0x0000007F"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "versi/build Windows client dan server",
+        "driver printer",
+        "event PrintService"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Gunakan driver versi yang sesuai dengan build Windows di client dan server, dari vendor atau jalur resmi. Hapus HANYA driver yang pasti salah sebelum memasang ulang."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-35-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x00000035 (jalur jaringan tidak ditemukan) pada printer",
+      "description": "Petunjuk: error 0x00000035 (jalur jaringan tidak ditemukan) pada printer",
+      "explanation": "Kode ini muncul pada beberapa tahap (nama, jaringan, SMB) ketika jalur ke komputer pemilik printer tidak ditemukan. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The network path was not found"
+      ],
+      "error_codes": [
+        "0x00000035"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Jalankan pemeriksaan lengkap; hasil DNS dan port 445 membedakan salah nama, server mati, atau firewall."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-43-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x00000043 (nama jaringan tidak ditemukan) pada printer",
+      "description": "Petunjuk: error 0x00000043 (nama jaringan tidak ditemukan) pada printer",
+      "explanation": "Kode ini berarti nama jaringan tidak ditemukan: server dapat dijangkau tetapi nama share printer tidak dikenal, mis. salah ketik atau printer belum dibagikan. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The network name cannot be found"
+      ],
+      "error_codes": [
+        "0x00000043"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Konfirmasi nama share printer yang benar di server (peran Server di aplikasi ini dapat memeriksanya) dan koreksi targetnya. Waspadai printer dengan nama mirip."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "PRN-3A-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x0000003A (server tidak dapat menjalankan operasi) pada printer",
+      "description": "Petunjuk: error 0x0000003A (server tidak dapat menjalankan operasi) pada printer",
+      "explanation": "Kode ini berarti server tidak dapat menjalankan operasi yang diminta. Pada printer sharing, kemungkinan terkait layanan di server (Print Spooler atau File and Printer Sharing) atau kebijakan di server. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The specified server cannot perform the requested operation"
+      ],
+      "error_codes": [
+        "0x0000003A"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "event PrintService di server",
+        "status layanan Print Spooler di server"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "printer"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Di server: pastikan Print Spooler berjalan dan File and Printer Sharing aktif, lihat event PrintService, lalu jalankan pemeriksaan lengkap."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
     }
   ]
 }

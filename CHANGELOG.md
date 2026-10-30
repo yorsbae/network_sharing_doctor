@@ -1,5 +1,10 @@
 # Changelog
 
+## Belum dirilis: katalog error printer dan folder sharing
+- 21 aturan petunjuk baru (hanya-kode, baca-saja, keyakinan rendah) untuk kode 0x Printer Sharing (0x00000040, 0x0000007C, 0x00000BCB, 0x00000002, 0x0000000A, 0x00000057, 0x0000007E, 0x0000007F, 0x00000035, 0x00000043, 0x0000003A) dan folder sharing (0x80004005, 0x80070032, 0x80070079, 0x80070020, 0x80070021, 0x80070003, 0x80070002, 0x80070006, 0x80070057, 0x80070015). Total aturan 46.
+- `docs/error-catalog.md`: tabel kode printer dan folder beserta aturannya, dan master list 104 popup error printer (referensi; pesan tanpa kode 0x belum menjadi aturan).
+- Tes baru memastikan tiap kode di daftar punya entri katalog dan tetap berupa petunjuk keyakinan rendah.
+
 ## Belum dirilis: perbaikan otomatis di UI dan halaman Kode error
 - Merek UI kembali ke Network Sharing Doctor.
 - Scan printer > "Perbaiki otomatis…": pratinjau, persetujuan, penerapan lewat `RepairExecutor` (snapshot, verifikasi, audit), tombol "Kembalikan perubahan", lalu scan ulang otomatis. Sakelar di Pengaturan; tombol di dialog untuk mengaktifkan dan menjalankan ulang sebagai administrator (UAC standar).

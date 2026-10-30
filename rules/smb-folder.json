@@ -260,6 +260,434 @@
       "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
       "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
       "references": []
+    },
+    {
+      "id": "FLD-UNSPEC-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x80004005 (galat tidak spesifik) pada folder jaringan",
+      "description": "Petunjuk: error 0x80004005 (galat tidak spesifik) pada folder jaringan",
+      "explanation": "Kode ini adalah galat umum tanpa rincian. Pada folder sharing, penyebabnya bisa izin, versi SMB, atau konfigurasi jaringan. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "Unspecified error"
+      ],
+      "error_codes": [
+        "0x80004005"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "pesan error lengkap",
+        "tahap saat error muncul"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Jalankan pemeriksaan lengkap dengan nama share terisi agar penyebab dapat dibuktikan, lalu periksa izin share dan NTFS serta kredensial yang dipakai."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-32-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x80070032 (permintaan tidak didukung) pada folder jaringan",
+      "description": "Petunjuk: error 0x80070032 (permintaan tidak didukung) pada folder jaringan",
+      "explanation": "Kode ini berarti permintaan tidak didukung. Pada folder sharing, ketidakcocokan protokol SMB antara client dan server (mis. perangkat lama) dapat memicunya. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The request is not supported"
+      ],
+      "error_codes": [
+        "0x80070032"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "versi SMB di client dan server"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Periksa versi SMB yang didukung kedua sisi dan perbarui firmware atau perangkat yang lama. Jangan mengaktifkan SMB1 hanya untuk mencoba; itu keputusan administrator."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Serahkan ke administrator dengan laporan ini; sertakan jenis dan versi perangkat atau Windows di server.",
+      "references": []
+    },
+    {
+      "id": "FLD-79-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x80070079 (batas waktu koneksi habis) pada folder jaringan",
+      "description": "Petunjuk: error 0x80070079 (batas waktu koneksi habis) pada folder jaringan",
+      "explanation": "Kode ini berarti batas waktu koneksi habis. Pada folder sharing, jaringan yang lambat atau terputus, server yang sibuk, atau firewall dapat memicunya. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The semaphore timeout period has expired"
+      ],
+      "error_codes": [
+        "0x80070079"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Periksa kabel atau Wi-Fi dan beban server, lalu jalankan pemeriksaan lengkap; hasil port 445 membantu membedakan jaringan lambat dari port yang diblokir."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-20-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x80070020 (berkas sedang dipakai proses lain)",
+      "description": "Petunjuk: error 0x80070020 (berkas sedang dipakai proses lain)",
+      "explanation": "Kode ini berarti berkas sedang dipakai proses lain (pelanggaran berbagi). Berkas yang dibuka oleh pengguna atau aplikasi lain pada share dapat memicunya. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The process cannot access the file"
+      ],
+      "error_codes": [
+        "0x80070020"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Minta pengguna atau aplikasi lain menutup berkas tersebut, atau di server lihat daftar berkas terbuka (Shared Folders > Open Files). Pastikan tidak ada data yang belum tersimpan sebelum menutup paksa."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-21-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x80070021 (sebagian berkas terkunci proses lain)",
+      "description": "Petunjuk: error 0x80070021 (sebagian berkas terkunci proses lain)",
+      "explanation": "Kode ini berarti sebagian berkas dikunci proses lain (pelanggaran kunci). Hal ini dapat terjadi pada berkas yang dibuka bersamaan oleh beberapa pengguna atau aplikasi. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The process cannot access the file because another process has locked a portion of the file"
+      ],
+      "error_codes": [
+        "0x80070021"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Tunggu atau minta pengguna lain menutup berkas, lalu coba lagi. Bila terus terjadi, minta administrator memeriksa kunci berkas dan pengaturan aplikasi yang memakainya."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-03-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x80070003 (jalur tidak ditemukan) pada folder jaringan",
+      "description": "Petunjuk: error 0x80070003 (jalur tidak ditemukan) pada folder jaringan",
+      "explanation": "Kode ini berarti jalur tidak ditemukan. Salah ketik nama share atau subfolder, folder yang dipindah atau dihapus, atau share yang tidak terlihat oleh akun ini dapat memicunya. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The system cannot find the path specified"
+      ],
+      "error_codes": [
+        "0x80070003"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Periksa ejaan share dan subfolder, lalu pastikan folder masih ada di server. Jalankan pemeriksaan lengkap agar bukti jalur UNC tersedia."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-02-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x80070002 (berkas tidak ditemukan) pada folder jaringan",
+      "description": "Petunjuk: error 0x80070002 (berkas tidak ditemukan) pada folder jaringan",
+      "explanation": "Kode ini berarti berkas atau sumber daya yang diminta tidak ditemukan. Berkas yang dipindah atau dihapus, atau pintasan lama yang menunjuk lokasi yang sudah berubah, dapat memicunya. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The system cannot find the file specified"
+      ],
+      "error_codes": [
+        "0x80070002"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Pastikan berkas atau pintasan yang dituju masih ada dan jalurnya benar, lalu jalankan pemeriksaan lengkap bila folder induknya juga tidak terbuka."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-06-001",
+      "version": 1,
+      "title": "Petunjuk: kode 0x80070006 (handle tidak valid)",
+      "description": "Petunjuk: kode 0x80070006 (handle tidak valid)",
+      "explanation": "Kode ini bersifat umum (handle tidak valid) dan maknanya bergantung pada API dan tahap operasi. Jangan menyimpulkan penyebab dari kode ini saja. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The handle is invalid"
+      ],
+      "error_codes": [
+        "0x80070006"
+      ],
+      "conditions": [],
+      "required_evidence": [
+        "pesan error lengkap",
+        "tahap saat error muncul"
+      ],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Catat pesan error lengkap dan langkah yang dilakukan saat muncul, lalu jalankan pemeriksaan lengkap dan bagikan laporan."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-57-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x80070057 (parameter tidak benar) pada folder jaringan",
+      "description": "Petunjuk: error 0x80070057 (parameter tidak benar) pada folder jaringan",
+      "explanation": "Kode ini berarti parameter atau konfigurasi tidak benar. Pada folder sharing, jalur atau nama share dengan karakter tidak valid, atau pengaturan yang salah, dapat memicunya. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The parameter is incorrect"
+      ],
+      "error_codes": [
+        "0x80070057"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Periksa jalur UNC dan nama share (ejaan serta karakter tak lazim), lalu jalankan pemeriksaan lengkap dengan nama share terisi."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
+    },
+    {
+      "id": "FLD-15-001",
+      "version": 1,
+      "title": "Petunjuk: error 0x80070015 (perangkat belum siap) pada folder jaringan",
+      "description": "Petunjuk: error 0x80070015 (perangkat belum siap) pada folder jaringan",
+      "explanation": "Kode ini berarti perangkat atau sumber daya belum siap. Pada folder sharing, server atau disk yang belum siap atau offline, atau pemetaan drive lama yang menunjuk sumber daya tidak aktif, dapat memicunya. Ini PETUNJUK berdasarkan kode, bukan diagnosis.",
+      "symptoms": [
+        "The device is not ready"
+      ],
+      "error_codes": [
+        "0x80070015"
+      ],
+      "conditions": [],
+      "required_evidence": [],
+      "os_constraints": [
+        "Windows 10/11; belum divalidasi untuk Windows Server"
+      ],
+      "roles": [
+        "client",
+        "server"
+      ],
+      "target_types": [
+        "folder"
+      ],
+      "risk": "read_only",
+      "requires_admin": false,
+      "auto_policy": "always_read_only",
+      "actions": [
+        {
+          "operation": "advise",
+          "text": "Pastikan server dan disk yang menyimpan folder sudah siap dan terjangkau; putuskan lalu petakan ulang drive jaringan lama bila perlu."
+        }
+      ],
+      "snapshot_keys": [],
+      "verification": [],
+      "rollback": {
+        "type": "not_applicable_read_only"
+      },
+      "failure_message": "Penyebab belum terbukti; kumpulkan laporan ini untuk diagnosis lanjutan.",
+      "escalation": "Jika langkah di atas tidak berhasil, kirim laporan (disamarkan) ke administrator/teknisi.",
+      "references": []
     }
   ]
 }
