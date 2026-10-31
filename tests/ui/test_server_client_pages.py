@@ -86,7 +86,9 @@ class ServerClientPages(unittest.TestCase):
         texts = " ".join(w.text() for w in page.findChildren(type(page.state)))
         self.assertIn("Print Spooler berjalan", texts)
         self.assertIn("Berhenti", texts)
-        self.assertIn("Yang bisa dilakukan", texts)
+        self.assertIn("Bisa disiapkan otomatis", texts)
+        self.assertNotIn("Yang bisa dilakukan", texts)          # tidak lagi menyuruh keluar aplikasi
+        self.assertFalse(page.prepare_btn.isHidden())
         self.assertEqual(page.readiness.verdict[1], "fail")
 
     def test_server_page_scan_button_emits_signal(self):
@@ -349,3 +351,26 @@ class ServerControlUi(ServerClientPages):
     def test_autostart_checkbox_disabled_outside_packaged_windows(self):
         page, _ = self._page()
         self.assertFalse(page.autostart_cb.isEnabled())
+
+
+@unittest.skipUnless(HAVE_QT, "PySide6 tidak terpasang")
+class PrepareDialogUi(ServerClientPages):
+    def test_dialog_needs_admin_then_applies(self):
+        from nsd.application import server_prepare as sp
+        from nsd.ui import prepare_dialog as pd
+        from tests.unit.test_server_prepare import Machine
+        from nsd.application.server_setup import check_readiness
+        m = Machine(elevated=False)
+        ctx = self.ctx()
+        ctx.adapter = m
+        acts = sp.plan(check_readiness(m, addresses=lambda: []))
+        dlg = pd.PrepareDialog(ctx, acts)
+        self.assertFalse(dlg.apply_btn.isEnabled())                  # belum admin: tombol mati, alasan ada di tooltip
+        self.assertIn("administrator", dlg.apply_btn.toolTip())
+        m.elevated = True
+        dlg._refresh_admin()
+        self.assertTrue(dlg.apply_btn.isEnabled())
+        self.assertFalse([cb for cb, a in dlg.checks if not a.default_on and cb.isChecked()])
+        dlg._done([sp.ActionResult(acts[0], "verified", "Layanan berjalan.")])
+        self.assertIn("Berhasil: ", dlg.log.toPlainText())
+        self.assertTrue(dlg.applied_any)

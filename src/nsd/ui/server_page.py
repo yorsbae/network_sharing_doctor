@@ -27,7 +27,9 @@ def step_row(step: server_setup.Step) -> QWidget:
     col.addWidget(theme.label(step.title))
     if step.detail:
         col.addWidget(theme.label(step.detail, "caption", selectable=True))
-    if step.howto and step.tone != "ok":
+    if step.auto and step.tone != "ok":
+        col.addWidget(theme.label("Bisa disiapkan otomatis dengan tombol di bawah.", "caption"))
+    elif step.howto and step.tone != "ok":
         col.addWidget(theme.label("Yang bisa dilakukan: " + step.howto, "caption", selectable=True))
     h.addLayout(col, 1)
     return row
@@ -65,6 +67,16 @@ class ServerPage(QWidget):
         self.steps_lay = QVBoxLayout()
         self.steps_lay.setSpacing(2)
         bl.addLayout(self.steps_lay)
+        prep = QHBoxLayout()
+        self.prepare_btn = QPushButton("Siapkan otomatis")
+        theme.set_role(self.prepare_btn, "primary")
+        self.prepare_btn.clicked.connect(self._prepare)
+        self.prepare_note = theme.label("", "caption")
+        prep.addWidget(self.prepare_btn)
+        prep.addWidget(self.prepare_note, 1)
+        bl.addLayout(prep)
+        self.prepare_btn.setVisible(False)
+        self.prepare_note.setVisible(False)
         lay.addWidget(box)
 
         box2, al = panel()
@@ -124,8 +136,7 @@ class ServerPage(QWidget):
     def _activity_panel(self) -> QWidget:
         box, bl = panel()
         bl.addWidget(theme.label("Aktivitas langsung", "section"))
-        bl.addWidget(theme.label("Yang menyambung ke komputer ini dan pekerjaan cetak yang masuk. Tanpa hak administrator, "
-                                 "hanya alamat IP yang terlihat.", "caption"))
+        bl.addWidget(theme.label("Komputer yang menyambung dan pekerjaan cetak yang masuk, terbaru di atas.", "caption"))
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
         self.log_view.setMaximumBlockCount(500)
@@ -221,6 +232,27 @@ class ServerPage(QWidget):
         for s in r.steps:
             self.steps_lay.addWidget(step_row(s))
         self._render_addresses(r)
+        self._sync_prepare()
+
+    def _sync_prepare(self) -> None:
+        from nsd.application import server_prepare
+        acts = server_prepare.plan(self.readiness) if self.readiness else []
+        self.prepare_btn.setVisible(bool(acts))
+        self.prepare_note.setVisible(bool(acts))
+        if acts:
+            self.prepare_note.setText(f"{len(acts)} langkah bisa dikerjakan langsung dari sini. Anda memilih dulu "
+                                      "mana yang diterapkan.")
+
+    def _prepare(self) -> None:
+        from nsd.application import server_prepare
+        from nsd.ui.prepare_dialog import PrepareDialog
+        acts = server_prepare.plan(self.readiness) if self.readiness else []
+        if not acts:
+            return
+        dlg = PrepareDialog(self.ctx, acts, self)
+        dlg.exec()
+        self._loaded_at = 0.0
+        self.refresh()                                    # periksa ulang supaya status mencerminkan hasil
 
     def _render_addresses(self, r: server_setup.Readiness | None) -> None:
         clear(self.addr_lay)

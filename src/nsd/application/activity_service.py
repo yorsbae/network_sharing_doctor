@@ -98,8 +98,8 @@ class ActivityWatcher:
         if not res.ok:                                  # tanpa admin: pakai koneksi TCP 445 (hanya alamat IP)
             res = self.adapter.run("list_smb_connections")
             if res.ok:
-                self._warn_once("sess", "Tanpa hak administrator: hanya alamat IP yang tersambung yang terlihat "
-                                        "(nama komputer/pengguna butuh administrator).")
+                self._warn_once("sess", "Tanpa hak administrator, yang tampil hanya alamat IP. "
+                                        "Buka aplikasi sebagai administrator untuk melihat nama komputer dan pengguna.")
         if not res.ok:
             self._warn_once("conn", "Daftar koneksi tidak bisa dibaca: " + (res.error or "tidak didukung")[:120])
             return None

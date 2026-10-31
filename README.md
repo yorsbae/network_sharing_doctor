@@ -49,6 +49,12 @@ Tanpa hak administrator hanya alamat IP yang terlihat (nama komputer/pengguna bu
 CLI: `nsd serve [--poll 3] [--interval 300]`, `nsd serve --status`, `nsd serve --stop`, `nsd autostart install --task serve`.
 Catatan: "selesai" berarti pekerjaan hilang dari antrean (terkirim ke printer atau dibatalkan); belum diuji di Windows asli.
 
+## Siapkan server otomatis
+Bila ada syarat yang belum terpenuhi, halaman **Server** menampilkan tombol **Siapkan otomatis**. Dialognya menawarkan, dengan centang per langkah:
+nyalakan Print Spooler / layanan Server, ubah jaringan aktif Publik ke Private, aktifkan aturan firewall File and Printer Sharing (Private/Domain saja),
+dan bagikan printer (nama share dibuat otomatis, printer virtual tidak dicentang bawaan). Butuh hak administrator: tombol **Buka ulang sebagai administrator** ada di dialog.
+Tiap langkah diverifikasi ulang; perintah yang tidak berefek dilaporkan "belum terbukti", bukan sukses. Firewall tidak pernah dimatikan. Tidak ada rollback otomatis; keadaan awal dicatat di log audit.
+
 ## Alur satu klik (monitor + autostart + GUI)
 Klik ganda `NSD.exe` (atau `NSD-Start.bat`) = `nsd start`:
 1. **Autostart** dipasang sekali (Task Scheduler, mode `logon-user`, tanpa admin; hanya build terpaket, idempoten).

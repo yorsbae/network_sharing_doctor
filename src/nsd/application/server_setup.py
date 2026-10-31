@@ -22,7 +22,8 @@ class Step:
     tone: str                 # ok | warn | fail | unknown
     status: str               # teks status singkat (selalu ada, warna hanya penguat)
     detail: str = ""
-    howto: str = ""           # langkah manual bila belum ok
+    howto: str = ""           # langkah manual bila belum ok dan tidak bisa disiapkan otomatis
+    auto: bool = False        # True bila "Siapkan otomatis" bisa memperbaikinya
 
 
 @dataclass
@@ -39,6 +40,7 @@ class ServerInfo:
     computer_name: str = ""
     addresses: list[str] = field(default_factory=list)
     printers: list[SharedPrinter] = field(default_factory=list)
+    unshared: list[str] = field(default_factory=list)      # nama printer terpasang yang belum dibagikan
 
 
 @dataclass
@@ -111,7 +113,7 @@ def _service_step(adapter, key: str, title: str, service: str, howto: str) -> St
     if st == "Running":
         return Step(key, title, "ok", "Berjalan")
     if st == "Stopped":
-        return Step(key, title, "fail", "Berhenti", "Layanan ini harus berjalan agar client bisa menyambung.", howto)
+        return Step(key, title, "fail", "Berhenti", "Layanan ini harus berjalan agar client bisa menyambung.", howto, auto=True)
     return Step(key, title, "warn", st or "Tidak diketahui", "", howto)
 
 
@@ -128,7 +130,7 @@ def _profile_step(adapter) -> Step:
         return Step("profile", title, "warn", "Publik",
                     "Jaringan berprofil Publik biasanya memblokir akses dari komputer lain.",
                     "Buka Settings > Network & internet, pilih koneksi yang dipakai, lalu ubah jenis jaringan ke Private. "
-                    "Jika komputer dikelola organisasi, tanyakan administrator.")
+                    "Jika komputer dikelola organisasi, tanyakan administrator.", auto=True)
     return Step("profile", title, "ok", "Pribadi" if "Private" in cats else ", ".join(cats))
 
 
@@ -145,7 +147,7 @@ def _firewall_step(adapter) -> Step:
         return Step("firewall", title, "ok", "Aktif", "Firewall pihak ketiga tidak dievaluasi.")
     return Step("firewall", title, "fail", "Nonaktif", "Semua aturan masuk File and Printer Sharing nonaktif.",
                 "Buka Control Panel > Windows Defender Firewall > Allow an app, lalu centang File and Printer Sharing "
-                "untuk jaringan Private. Jangan mematikan firewall.")
+                "untuk jaringan Private. Jangan mematikan firewall.", auto=True)
 
 
 _SHARE_HOWTO = ("Buka Settings > Bluetooth & devices > Printers & scanners, pilih printer, Printer properties, tab Sharing, "
@@ -162,11 +164,12 @@ def _printer_step(adapter, computer: str, info: ServerInfo) -> Step:
                     "Pasang printer dulu (kabel USB atau jaringan), pastikan bisa mencetak halaman uji dari komputer ini, "
                     "lalu bagikan.")
     shared = [p for p in lst.items if p.shared and p.share_name]
+    info.unshared = [p.name for p in lst.items if not (p.shared and p.share_name)]
     for p in shared:
         info.printers.append(SharedPrinter(p.name, p.share_name, p.status_text, p.tone, f"\\\\{computer}\\{p.share_name}"))
     if not shared:
         return Step("printers", title, "fail", "Belum dibagikan",
-                    f"{len(lst.items)} printer terpasang, tidak ada yang dibagikan.", _SHARE_HOWTO)
+                    f"{len(lst.items)} printer terpasang, tidak ada yang dibagikan.", _SHARE_HOWTO, auto=True)
     bad = [p for p in shared if p.tone in ("fail", "warn")]
     if bad:
         return Step("printers", title, "warn", f"{len(shared)} dibagikan",

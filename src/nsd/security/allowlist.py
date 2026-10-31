@@ -67,6 +67,22 @@ def validate_unc(value: str) -> str:
     return build_unc(parts[0], parts[1])
 
 
+def validate_printer_name(value: str) -> str:
+    """Nama printer Windows (bebas, tetapi tanpa karakter kontrol). Hanya dikirim lewat variabel lingkungan."""
+    v = (value or "").strip()
+    if not v or len(v) > 200 or any(ord(ch) < 32 for ch in v):
+        raise ValidationError("Nama printer kosong, terlalu panjang, atau memuat karakter kontrol.")
+    return v
+
+
+def validate_share_plain(value: str) -> str:
+    """Nama share untuk printer yang dibagikan otomatis: aturan validate_share, tanpa spasi."""
+    v = validate_share(value)
+    if " " in v:
+        raise ValidationError("Nama share tidak boleh memuat spasi.")
+    return v
+
+
 ALLOWED_SERVICES = frozenset(
     {"Spooler", "LanmanWorkstation", "LanmanServer", "FDResPub", "fdPHost", "Dnscache"}
 )

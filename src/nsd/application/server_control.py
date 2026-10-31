@@ -110,7 +110,7 @@ def run_serve(data_dir: Path, watcher: ActivityWatcher, monitor: MonitorService 
             (data_dir / STOP).unlink()
         except OSError:
             pass
-        watcher.emit("server_start", message=f"poll {poll} dtk, pid {os.getpid()}")
+        watcher.emit("server_start")
         if monitor is not None:     # monitor di thread sendiri agar scan lambat tidak menunda log aktivitas
             def _mon() -> None:
                 try:

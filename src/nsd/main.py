@@ -57,6 +57,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--type", dest="ttype", choices=["printer", "folder", "both"], default="both")
     sp.add_argument("--interval", type=int, default=300)
     sp.add_argument("--no-gui", action="store_true", help="Hanya sisi server (monitor), tanpa jendela")
+    sp.add_argument("--wait-previous", action="store_true", help="Tunggu jendela lama tertutup (setelah buka ulang sebagai admin)")
     sp.add_argument("--no-monitor", action="store_true"); sp.add_argument("--no-autostart", action="store_true")
     au = sub.add_parser("autostart", help="Pasang/hapus autostart monitor (Task Scheduler)")
     au.add_argument("action", choices=["install", "uninstall", "status"])
@@ -301,7 +302,8 @@ def _cmd_start(a: argparse.Namespace) -> int:
     d = data_dir()
     log = setup_logging(d)
     rep = launch(d, host=a.host, share=a.share, target_type=a.ttype, interval=a.interval, with_gui=not a.no_gui,
-                 with_monitor=not a.no_monitor, with_autostart=not a.no_autostart)
+                 with_monitor=not a.no_monitor, with_autostart=not a.no_autostart,
+                 wait_previous=10.0 if a.wait_previous else 0.0)
     for line in rep.steps:
         log.log(logging.INFO, "start: %s", line)
         print(line)

@@ -165,11 +165,14 @@ class RealAdapterGuards(unittest.TestCase):
         return m
 
     def test_mutating_ops_are_minimal_and_separate(self):
-        self.assertEqual(set(MUTATING_OPERATIONS), {"start_service", "stop_service"})
+        self.assertEqual(set(MUTATING_OPERATIONS), {"start_service", "stop_service", "set_network_private",
+                                                    "enable_sharing_firewall", "share_printer"})
         self.assertFalse(set(MUTATING_OPERATIONS) & set(READ_OPERATIONS))
         for spec in MUTATING_OPERATIONS.values():
             self.assertNotIn("-Force", spec.script)
             self.assertNotIn("Set-Service", spec.script)   # tipe startup tidak diubah
+            self.assertNotIn("Disable-NetFirewall", spec.script)   # firewall tidak pernah dimatikan
+            self.assertNotIn("Set-NetFirewallProfile", spec.script)
 
     def test_run_cannot_mutate(self):
         a = RealWindowsAdapter(platform="win32", allow_mutation=True)

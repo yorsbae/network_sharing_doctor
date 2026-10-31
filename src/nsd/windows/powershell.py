@@ -21,7 +21,9 @@ from typing import Any, Callable, Protocol
 from nsd.security.allowlist import (
     ValidationError,
     validate_host,
+    validate_printer_name,
     validate_service,
+    validate_share_plain,
     validate_unc,
 )
 from nsd.windows.privilege import is_elevated
@@ -68,6 +70,18 @@ _SVC_STATE = (
     "| ConvertTo-Json -Compress"
 )
 
+_NET_PROFILE = (
+    "@(Get-NetConnectionProfile | ForEach-Object { [pscustomobject]@{"
+    "Category=$_.NetworkCategory.ToString();IPv4=$_.IPv4Connectivity.ToString()} }) "
+    "| ConvertTo-Json -Compress"
+)
+_FW_GROUP = "Get-NetFirewallRule -Group '@FirewallAPI.dll,-32752'"
+_FIREWALL_SHARING = (
+    f"@({_FW_GROUP} | ForEach-Object {{ [pscustomobject]@{{"
+    "Enabled=$_.Enabled.ToString();Direction=$_.Direction.ToString();"
+    "Action=$_.Action.ToString();Profile=$_.Profile.ToString()} }) | ConvertTo-Json -Compress"
+)
+
 READ_OPERATIONS: dict[str, ReadOp] = {
     "os_info": ReadOp(
         "$os=Get-CimInstance Win32_OperatingSystem; $cs=Get-CimInstance Win32_ComputerSystem; "
@@ -76,18 +90,10 @@ READ_OPERATIONS: dict[str, ReadOp] = {
         "| ConvertTo-Json -Compress"
     ),
     "get_service": ReadOp(_SVC_STATE, {"service": validate_service}),
-    "net_profile": ReadOp(
-        "@(Get-NetConnectionProfile | ForEach-Object { [pscustomobject]@{"
-        "Category=$_.NetworkCategory.ToString();IPv4=$_.IPv4Connectivity.ToString()} }) "
-        "| ConvertTo-Json -Compress"
-    ),
+    "net_profile": ReadOp(_NET_PROFILE),
     # Grup 'File and Printer Sharing'. ID resource HARUS divalidasi di VM Windows
     # (lihat docs/test-matrix.md); hasil kosong dilaporkan sebagai 'belum diperiksa'.
-    "firewall_sharing": ReadOp(
-        "@(Get-NetFirewallRule -Group '@FirewallAPI.dll,-32752' | ForEach-Object { [pscustomobject]@{"
-        "Enabled=$_.Enabled.ToString();Direction=$_.Direction.ToString();"
-        "Action=$_.Action.ToString();Profile=$_.Profile.ToString()} }) | ConvertTo-Json -Compress"
-    ),
+    "firewall_sharing": ReadOp(_FIREWALL_SHARING),
     "smb_client_config": ReadOp(
         "Get-SmbClientConfiguration | Select-Object EnableInsecureGuestLogons,"
         "RequireSecuritySignature,EnableSecuritySignature | ConvertTo-Json -Compress"
@@ -149,6 +155,19 @@ MUTATING_OPERATIONS: dict[str, ReadOp] = {
     "start_service": ReadOp(
         "Start-Service -Name $env:NSD_P_SERVICE -ErrorAction Stop; " + _SVC_STATE,
         {"service": validate_service}, timeout=45),
+    # Persiapan server. Tidak pernah mematikan firewall, tidak menyentuh profil Public pada aturan firewall,
+    # dan hanya mengubah koneksi yang sedang aktif dari Public ke Private.
+    "set_network_private": ReadOp(
+        "Get-NetConnectionProfile | Where-Object { $_.NetworkCategory -eq 'Public' -and $_.IPv4Connectivity -ne 'Disconnected' } "
+        "| ForEach-Object { Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private -ErrorAction Stop }; "
+        + _NET_PROFILE, timeout=45),
+    "enable_sharing_firewall": ReadOp(
+        f"{_FW_GROUP} -Direction Inbound | Where-Object {{ $p=$_.Profile.ToString(); $p -match 'Private|Domain' "
+        "-and $p -notmatch 'Public|Any' } | Enable-NetFirewallRule -ErrorAction Stop; " + _FIREWALL_SHARING, timeout=45),
+    "share_printer": ReadOp(
+        "Set-Printer -Name $env:NSD_P_PRINTER -Shared $true -ShareName $env:NSD_P_SHARE -ErrorAction Stop; "
+        f"@(Get-Printer -Name $env:NSD_P_PRINTER | {_PRINTER_PROJ}) | ConvertTo-Json -Compress",
+        {"printer": validate_printer_name, "share": validate_share_plain}, timeout=45),
     "stop_service": ReadOp(
         "Stop-Service -Name $env:NSD_P_SERVICE -ErrorAction Stop; " + _SVC_STATE,
         {"service": validate_service}, timeout=45),

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -88,7 +89,7 @@ def ensure_autostart(*, frozen: bool | None = None, platform: str | None = None,
 
 def launch(data_dir: Path, *, host: str = "localhost", share: str = "", target_type: str = "both",
            interval: int = 300, with_gui: bool = True, with_monitor: bool = True, with_autostart: bool = True,
-           run_gui: Callable[[], int] | None = None, **kw) -> LaunchReport:
+           run_gui: Callable[[], int] | None = None, wait_previous: float = 0.0, **kw) -> LaunchReport:
     rep = LaunchReport()
     if with_autostart:
         try:
@@ -107,7 +108,12 @@ def launch(data_dir: Path, *, host: str = "localhost", share: str = "", target_t
             rep.exit_code = 1
     if with_gui:
         gui_lock = SingleInstance(data_dir / "gui.lock")
-        if not gui_lock.acquire():
+        got = gui_lock.acquire()
+        end = time.monotonic() + wait_previous      # setelah buka ulang sebagai admin, tunggu jendela lama tutup
+        while not got and time.monotonic() < end:
+            time.sleep(0.25)
+            got = gui_lock.acquire()
+        if not got:
             rep.add("Jendela NSD sudah terbuka.")
             return rep
         try:
