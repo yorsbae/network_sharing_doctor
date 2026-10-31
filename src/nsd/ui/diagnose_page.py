@@ -12,7 +12,6 @@ from nsd.application.report_service import build_json, build_text
 from nsd.models import Role, ScanRequest, Status, TargetType
 from nsd.security.allowlist import ValidationError
 from nsd.ui import theme
-from nsd.ui.labels import ROLE_LABELS
 from nsd.ui.widgets.cards import panel
 from nsd.ui.widgets.worker import ScanWorker
 
@@ -83,22 +82,21 @@ class DiagnosePage(QWidget):
         lay.setContentsMargins(32, 28, 32, 20)
         lay.setSpacing(14)
         lay.addWidget(theme.header(
-            "Scan printer", "Isi target yang gagal diakses, lalu jalankan pemeriksaan. Sistem tidak diubah. "
-                            "Belum tahu nama servernya? Klik Cari server."))
+            "Scan printer", "Pemeriksaan lengkap yang hanya membaca. Tidak ada yang diubah pada sistem."))
+        self.mode = "server" if ctx.settings.get("role_chosen") and ctx.settings.get("role") == "server" else "client"
 
         formbox, form_lay = panel()
         grid = QGridLayout()
         form_lay.addLayout(grid)
         grid.setHorizontalSpacing(16)
         grid.setVerticalSpacing(4)
-        self.role = QComboBox()
-        for text in ROLE_LABELS.values():
-            self.role.addItem(text)
-        self.role.setCurrentIndex(0 if ctx.settings.get("role") == "client" else 1)
+        self.mode_note = theme.label("", "caption")
+        form_lay.insertWidget(0, self.mode_note)
         self.ttype = QComboBox()
         self.ttype.addItems(["Printer dan folder", "Printer", "Folder"])
         self.host = QLineEdit()
         self.host.setPlaceholderText("Nama atau IP server")
+        self.host.setText(str(ctx.settings.get("last_server") or "") if self.mode == "client" else "localhost")
         self.find_btn = QPushButton("Cari server…")
         self.find_btn.setToolTip("Buka halaman Client untuk mencari server di jaringan")
         self.find_btn.clicked.connect(self.find_server.emit)
@@ -115,11 +113,12 @@ class DiagnosePage(QWidget):
         for edit in (self.host, self.share, self.error):
             edit.returnPressed.connect(self.start)
         for row_, col, text, field, span in (
-            (0, 0, "Peran komputer ini", self.role, 1), (0, 1, "Jenis target", self.ttype, 1),
-            (2, 0, "Server / target", host_box, 1), (2, 1, "Nama share", self.share, 1),
-            (4, 0, "Error", self.error, 2),
+            (0, 0, "Jenis target", self.ttype, 1), (0, 1, "Nama share", self.share, 1),
+            (2, 0, "Server", host_box, 2), (4, 0, "Error", self.error, 2),
         ):
             cap = theme.label(text, "caption")
+            if field is host_box:
+                self.host_cap, self.host_box = cap, host_box
             cap.setBuddy(self.host if field is host_box else field)
             if row_:
                 cap.setContentsMargins(0, 8, 0, 0)
@@ -128,8 +127,7 @@ class DiagnosePage(QWidget):
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
         lay.addWidget(formbox)
-        self.role.currentIndexChanged.connect(self._role_changed)
-        self._role_changed(self.role.currentIndex())
+        self.set_mode(self.mode)
 
         row = QHBoxLayout()
         self.go = QPushButton("Mulai scan")
@@ -187,19 +185,25 @@ class DiagnosePage(QWidget):
         self.results.addWidget(split)
         lay.addWidget(self.results, 1)
 
-    def _role_changed(self, index: int) -> None:
-        """Server = komputer ini (localhost); client = komputer lain, jadi 'localhost' tidak masuk akal sebagai target."""
-        server = index == 1
-        self.find_btn.setVisible(not server)
-        self.host.setPlaceholderText("localhost untuk komputer ini" if server else "Nama atau IP server")
-        text = self.host.text().strip().lower()
-        if server and not text:
+    def set_mode(self, mode: str) -> None:
+        """Mode komputer menentukan isian: server = komputer ini (tanpa kolom server), client = server yang dituju."""
+        self.mode = "server" if mode == "server" else "client"
+        server = self.mode == "server"
+        self.host_cap.setVisible(not server)
+        self.host_box.setVisible(not server)
+        if server:
             self.host.setText("localhost")
-        elif not server and text == "localhost":
-            self.host.clear()
+            self.mode_note.setText("Mode Server: yang diperiksa adalah komputer ini. Isi nama share bila ingin memeriksa folder "
+                                   "yang dibagikan.")
+            self.share.setPlaceholderText("Nama share folder (opsional)")
+        else:
+            if self.host.text().strip().lower() == "localhost":
+                self.host.clear()
+            self.mode_note.setText("Mode Client: isi server yang gagal diakses. Belum tahu namanya? Klik Cari server.")
+            self.share.setPlaceholderText("Nama share printer atau folder")
 
     def prefill(self, role: str, ttype: str, host: str, share: str = "", error: str = "") -> None:
-        self.role.setCurrentIndex(0 if role == "client" else 1)
+        self.set_mode(role)
         self.ttype.setCurrentIndex({"both": 0, "printer": 1, "folder": 2}.get(ttype, 0))
         self.host.setText(host)
         self.share.setText(share)
@@ -216,7 +220,7 @@ class DiagnosePage(QWidget):
         """Dashboard > Scan sekarang: periksa printer dan spooler di komputer ini tanpa mengisi form."""
         if self._thread is not None:
             return
-        self.role.setCurrentIndex(1)           # server: komputer ini yang membagikan
+        self.set_mode("server")                # komputer ini yang diperiksa
         self.ttype.setCurrentIndex(1)          # printer
         self.host.setText("localhost")
         self.share.clear()
@@ -227,7 +231,7 @@ class DiagnosePage(QWidget):
         if self._thread is not None:
             return
         try:
-            req = ScanRequest(Role.CLIENT if self.role.currentIndex() == 0 else Role.SERVER,
+            req = ScanRequest(Role.SERVER if self.mode == "server" else Role.CLIENT,
                               (TargetType.BOTH, TargetType.PRINTER, TargetType.FOLDER)[self.ttype.currentIndex()],
                               self.host.text(), self.share.text(), self.error.text())
             svc = self.ctx.scan_service()

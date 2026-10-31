@@ -238,23 +238,25 @@ class ServerClientPages(unittest.TestCase):
         self.assertEqual(win.nav.currentRow(), GOTO["scan"])
         req = win.diagnose.outcome.request
         self.assertEqual((req.role, req.target_type.value, req.host, req.share), (Role.CLIENT, "printer", "SERVER01", "EPSON"))
-        self.assertEqual(win.diagnose.role.currentIndex(), 0)
+        self.assertEqual(win.diagnose.mode, "client")
 
-    def test_scan_page_find_server_goes_to_client_and_role_switch_fixes_the_host(self):
+    def test_scan_page_has_no_role_picker_and_follows_the_mode(self):
         from nsd.ui.main_window import GOTO, MainWindow
         win = MainWindow(self.ctx())
         d = win.diagnose
-        self.assertFalse(d.find_btn.isHidden())
+        self.assertFalse(hasattr(d, "role"))
+        d.set_mode("client")
+        self.assertFalse(d.host_box.isHidden())
         d.find_btn.click()
         self.assertEqual(win.nav.currentRow(), GOTO["client"])
-        d.role.setCurrentIndex(1)                       # server: komputer ini
+        d.set_mode("server")                            # server: komputer ini, kolom server disembunyikan
         self.assertEqual(d.host.text(), "localhost")
-        self.assertTrue(d.find_btn.isHidden())
-        d.role.setCurrentIndex(0)                       # kembali ke client: localhost bukan target yang masuk akal
+        self.assertTrue(d.host_box.isHidden())
+        self.assertIn("komputer ini", d.mode_note.text())
+        d.set_mode("client")                            # kembali ke client: localhost bukan target yang masuk akal
         self.assertEqual(d.host.text(), "")
-        self.assertFalse(d.find_btn.isHidden())
         d.host.setText("SERVER01")
-        d.role.setCurrentIndex(1)
+        d.set_mode("client")
         self.assertEqual(d.host.text(), "SERVER01")     # isian pengguna tidak ditimpa
 
     def test_server_page_scan_button_scans_this_computer_as_server(self):
@@ -282,7 +284,8 @@ class ServerClientPages(unittest.TestCase):
         vis = self._visible(win)
         self.assertIn("Server", vis)
         self.assertNotIn("Client", vis)
-        self.assertNotIn("Scan printer", vis)
+        self.assertIn("Scan printer", vis)
+        self.assertTrue(win.diagnose.host_box.isHidden())
         self.assertNotIn("Dashboard", vis)
         self.assertEqual(win.nav.currentRow(), GOTO["server"])
         self.assertEqual(win.mode_label.text(), "Mode: Server")

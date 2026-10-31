@@ -29,7 +29,7 @@ NAV = (("Dashboard", "home"), ("Server", "server"), ("Client", "client"), ("Scan
        ("Kode error", "code"), ("Daftar printer", "printer"), ("Antrean cetak", "queue"), ("Kertas", "paper"),
        ("Log", "log"), ("Pengaturan", "settings"))
 # Menu yang tampil per mode (indeks NAV). Belum memilih mode: hanya Dashboard (pilih mode) dan Pengaturan.
-MENU_BY_ROLE = {None: {0, 9}, "server": {1, 5, 6, 8, 9}, "client": {2, 3, 4, 7, 8, 9}}
+MENU_BY_ROLE = {None: {0, 9}, "server": {1, 3, 5, 6, 8, 9}, "client": {2, 3, 4, 7, 8, 9}}
 GOTO = {"server": 1, "client": 2, "scan": 3, "errors": 4, "printers": 5, "queue": 6, "log": 8}
 
 
@@ -153,6 +153,8 @@ class MainWindow(QMainWindow):
             self.nav.item(i).setHidden(i not in allowed)
         self.mode_label.setText({"server": "Mode: Server", "client": "Mode: Client"}.get(role, "Mode: belum dipilih"))
         self.mode_btn.setVisible(role is not None)
+        if role:
+            self.diagnose.set_mode(role)
         if open_role_page and role:
             self.nav.setCurrentRow(GOTO[role])
         elif self.nav.currentRow() not in allowed:
