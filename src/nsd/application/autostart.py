@@ -51,12 +51,18 @@ def _q(value: str) -> str:
     return f'"{value}"'
 
 
-def build_task_command(exe: str, *, host: str, share: str, target_type: str, interval: int, data_dir: str | None) -> str:
+TASKS = ("monitor", "serve")   # subperintah yang dijalankan tugas terjadwal; "serve" = monitor + log aktivitas
+
+
+def build_task_command(exe: str, *, host: str, share: str, target_type: str, interval: int, data_dir: str | None,
+                       task: str = "monitor") -> str:
+    if task not in TASKS:
+        raise ValidationError(f"Tugas tidak dikenal: {task}")
     if target_type not in ("printer", "folder", "both"):
         raise ValidationError("Jenis target tidak valid.")
     if not 30 <= int(interval) <= 86400:
         raise ValidationError("Interval harus 30–86400 detik.")
-    parts = [_q(exe), "monitor", "--role", "server", "--type", target_type, "--host", validate_host(host),
+    parts = [_q(exe), task, "--role", "server", "--type", target_type, "--host", validate_host(host),
              "--interval", str(int(interval))]
     if share:
         parts += ["--share", _q(validate_share(share))]
@@ -91,7 +97,7 @@ def _run(runner: Runner, args: list[str]):
 def install(mode: str, *, host: str, share: str, target_type: str, interval: int,
             exe: str | None = None, frozen: bool | None = None, platform: str | None = None,
             elevated: bool = False, env: dict[str, str] | None = None, runner: Runner = subprocess.run,
-            i_understand_risk: bool = False) -> Outcome:
+            i_understand_risk: bool = False, task: str = "monitor") -> Outcome:
     env = env if env is not None else dict(os.environ)
     if (platform or sys.platform) != "win32":
         return Outcome(False, "Autostart hanya tersedia di Windows.")
@@ -110,7 +116,8 @@ def install(mode: str, *, host: str, share: str, target_type: str, interval: int
                                   "Pasang di Program Files, atau gunakan mode logon-user.")
         data_dir = system_data_dir(env)
     try:
-        cmd = build_task_command(exe, host=host, share=share, target_type=target_type, interval=interval, data_dir=data_dir)
+        cmd = build_task_command(exe, host=host, share=share, target_type=target_type, interval=interval, data_dir=data_dir,
+                                 task=task)
         args = build_create_args(mode, cmd, env)
     except (ValidationError, ValueError) as exc:
         return Outcome(False, f"Parameter tidak valid: {exc}")

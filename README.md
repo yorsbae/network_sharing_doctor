@@ -40,6 +40,15 @@ Di komputer **client** (menu Client):
 Tidak ditemukan saat mencari? Server mati/beda jaringan, atau firewall di server memblokir File and Printer Sharing. Ketik alamat IP server secara manual.
 Lewat CLI: `nsd scan --role server --host localhost --type printer` (server) dan `nsd scan --role client --host SERVER01 --share EPSON --type printer` (client).
 
+## Tombol Server: jalankan, autostart, log koneksi/cetak
+Menu **Server** punya tiga kontrol baru:
+1. **Jalankan server / Hentikan server**: menyalakan `nsd serve` di latar belakang (tanpa jendela, satu instans per folder data).
+2. **Jalankan server otomatis saat Windows menyala (saat login)**: memasang/menghapus tugas Task Scheduler untuk `serve` (hanya `NSD.exe` terpaket, tanpa admin).
+3. **Aktivitas langsung**: log siapa yang menyambung/terputus dan pekerjaan cetak (masuk antrean, status berubah, selesai, bermasalah). Disimpan di `<data>/activity.jsonl` (dirotasi 1 MB).
+Tanpa hak administrator hanya alamat IP yang terlihat (nama komputer/pengguna butuh admin). Semuanya BACA-SAJA.
+CLI: `nsd serve [--poll 3] [--interval 300]`, `nsd serve --status`, `nsd serve --stop`, `nsd autostart install --task serve`.
+Catatan: "selesai" berarti pekerjaan hilang dari antrean (terkirim ke printer atau dibatalkan); belum diuji di Windows asli.
+
 ## Alur satu klik (monitor + autostart + GUI)
 Klik ganda `NSD.exe` (atau `NSD-Start.bat`) = `nsd start`:
 1. **Autostart** dipasang sekali (Task Scheduler, mode `logon-user`, tanpa admin; hanya build terpaket, idempoten).

@@ -106,9 +106,20 @@ READ_OPERATIONS: dict[str, ReadOp] = {
     "list_print_jobs": ReadOp(
         "@(Get-Printer | ForEach-Object { $p=$_.Name; Get-PrintJob -PrinterName $p -ErrorAction SilentlyContinue "
         "| ForEach-Object { [pscustomobject]@{Id=$_.Id;Document=$_.DocumentName;Printer=$p;"
-        "Status=$_.JobStatus.ToString();Pages=$_.TotalPages;Size=$_.Size;Submitted=$_.SubmittedTime.ToString('s')} } }) "
+        "Status=$_.JobStatus.ToString();Pages=$_.TotalPages;Size=$_.Size;Submitted=$_.SubmittedTime.ToString('s');"
+        "Owner=$_.UserName;Client=$_.ComputerName} } }) "
         "| ConvertTo-Json -Compress",
         timeout=30,
+    ),
+    # Koneksi masuk ke komputer ini (BACA-SAJA). Get-SmbSession butuh admin; TCP 445 tidak.
+    "list_smb_sessions": ReadOp(
+        "@(Get-SmbSession | ForEach-Object { [pscustomobject]@{Client=$_.ClientComputerName;"
+        "User=$_.ClientUserName;Opens=$_.NumOpens} }) | ConvertTo-Json -Compress"
+    ),
+    "list_smb_connections": ReadOp(
+        "@(Get-NetTCPConnection -LocalPort 445 -State Established -ErrorAction SilentlyContinue "
+        "| ForEach-Object { [pscustomobject]@{Client=$_.RemoteAddress;User=$null;Opens=$null} }) "
+        "| ConvertTo-Json -Compress"
     ),
     "list_local_shares": ReadOp(
         "@(Get-SmbShare | ForEach-Object { [pscustomobject]@{Name=$_.Name;Special=[bool]$_.Special} }) "

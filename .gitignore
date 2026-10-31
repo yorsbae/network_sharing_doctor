@@ -8,3 +8,7 @@ data/
 *.corrupt-*
 nsd.log*
 portable.flag
+activity.jsonl*
+server_status.json*
+server.lock
+server.stop

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import sys
 import time
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget
 
-from nsd.application import server_setup
+from nsd.application import autostart, server_control, server_setup
+from nsd.application.activity_service import describe, read_events
 from nsd.ui import theme
 from nsd.ui.widgets.cards import clear, panel, scroll_body
 from nsd.ui.widgets.worker import run_async
@@ -45,9 +47,12 @@ class ServerPage(QWidget):
         lay.addWidget(theme.header("Server", "Komputer ini membagikan printer ke komputer lain di jaringan.", self.refresh_btn))
         lay.addWidget(theme.callout(
             "Tidak ada program server yang perlu dijalankan",
-            "Windows sendiri melayani client selama printer terpasang dan dibagikan di komputer ini. Halaman ini memeriksa "
-            "semua syaratnya, lalu memberi alamat yang tinggal disalin ke client. Komputer ini harus menyala dan "
-            "tersambung ke jaringan saat client mencetak."))
+            "Windows sendiri melayani client selama printer terpasang dan dibagikan di komputer ini. Tombol "
+            "\"Jalankan server\" menyalakan pemantau di latar belakang yang mencatat siapa yang menyambung dan siapa yang "
+            "mencetak (hanya membaca). Komputer ini harus menyala dan tersambung ke jaringan saat client mencetak."))
+
+        lay.addWidget(self._control_panel())
+        lay.addWidget(self._activity_panel())
 
         box, bl = panel()
         top = QHBoxLayout()
@@ -85,8 +90,107 @@ class ServerPage(QWidget):
         lay.addStretch(1)
         self._render_addresses(None)
 
+    # -- kontrol server, autostart, log aktivitas ---------------------------
+    def _control_panel(self) -> QWidget:
+        box, bl = panel()
+        top = QHBoxLayout()
+        top.addWidget(theme.label("Server NSD", "section"), 1)
+        self.run_chip_row = QHBoxLayout()
+        top.addLayout(self.run_chip_row)
+        bl.addLayout(top)
+        row = QHBoxLayout()
+        self.run_btn = QPushButton("Jalankan server")
+        theme.set_role(self.run_btn, "primary")
+        self.run_btn.clicked.connect(self._toggle_server)
+        row.addWidget(self.run_btn)
+        row.addStretch(1)
+        bl.addLayout(row)
+        self.autostart_cb = QCheckBox("Jalankan server otomatis saat Windows menyala (saat login)")
+        usable = sys.platform == "win32" and getattr(sys, "frozen", False)
+        self._autostart_usable = usable
+        if usable:
+            self.autostart_cb.setChecked(autostart.status().ok)
+            self.autostart_cb.toggled.connect(self._toggle_autostart)
+        else:
+            self.autostart_cb.setEnabled(False)
+        bl.addWidget(self.autostart_cb)
+        self.ctl_note = theme.label(
+            "" if usable else "Autostart tersedia di Windows pada aplikasi terpaket (NSD.exe). Dari skrip Python, "
+                              "pilihan ini dimatikan; tombol Jalankan server tetap bisa dipakai.", "caption")
+        bl.addWidget(self.ctl_note)
+        self.ctl_note.setVisible(bool(self.ctl_note.text()))
+        return box
+
+    def _activity_panel(self) -> QWidget:
+        box, bl = panel()
+        bl.addWidget(theme.label("Aktivitas langsung", "section"))
+        bl.addWidget(theme.label("Yang menyambung ke komputer ini dan pekerjaan cetak yang masuk. Tanpa hak administrator, "
+                                 "hanya alamat IP yang terlihat.", "caption"))
+        self.log_view = QPlainTextEdit()
+        self.log_view.setReadOnly(True)
+        self.log_view.setMaximumBlockCount(500)
+        self.log_view.setMinimumHeight(180)
+        self.log_view.setAccessibleName("Log aktivitas server")
+        self.log_view.setPlaceholderText("Belum ada aktivitas. Klik Jalankan server, lalu cetak dari komputer client.")
+        bl.addWidget(self.log_view)
+        self._log_sig = None
+        self.timer = QTimer(self)
+        self.timer.setInterval(2000)
+        self.timer.timeout.connect(self._poll)
+        return box
+
+    def _poll(self) -> None:
+        self._update_run_state()
+        self._render_log()
+
+    def _update_run_state(self) -> None:
+        running = server_control.is_running(self.ctx.data_dir)
+        clear(self.run_chip_row)
+        self.run_chip_row.addWidget(theme.chip("Berjalan" if running else "Berhenti", "ok" if running else "neutral"))
+        self.run_btn.setText("Hentikan server" if running else "Jalankan server")
+        self.run_btn.setEnabled(True)
+
+    def _render_log(self) -> None:
+        evs = read_events(self.ctx.data_dir, 200)
+        sig = (len(evs), evs[-1] if evs else None)
+        if sig == self._log_sig:
+            return
+        self._log_sig = sig
+        self.log_view.setPlainText("\n".join(f"{e.get('ts', '')[11:]}  {describe(e)}" for e in evs[::-1]))   # terbaru di atas
+
+    def _toggle_server(self) -> None:
+        self.run_btn.setEnabled(False)
+        if server_control.is_running(self.ctx.data_dir):
+            msg = server_control.stop(self.ctx.data_dir)
+        else:
+            try:
+                msg = server_control.start(self.ctx.data_dir)
+            except (ValueError, OSError) as exc:
+                QMessageBox.warning(self, "Server", f"Server tidak bisa dijalankan: {exc}")
+                msg = ""
+        if msg:
+            self.note.setText(msg)
+        QTimer.singleShot(1500, self._poll)
+
+    def _toggle_autostart(self, on: bool) -> None:
+        res = (autostart.install("logon-user", host="localhost", share="", target_type="printer", interval=300, task="serve")
+               if on else autostart.uninstall())
+        if not res.ok:
+            self.autostart_cb.blockSignals(True)
+            self.autostart_cb.setChecked(not on)
+            self.autostart_cb.blockSignals(False)
+            QMessageBox.warning(self, "Autostart", res.message)
+        else:
+            self.note.setText("Server akan jalan otomatis saat login." if on else "Autostart dimatikan.")
+
+    def hideEvent(self, e) -> None:  # noqa: N802
+        self.timer.stop()                     # tidak membaca log saat halaman tidak terlihat
+        super().hideEvent(e)
+
     def showEvent(self, e) -> None:  # noqa: N802
         super().showEvent(e)
+        self._poll()
+        self.timer.start()
         if self.readiness is None or time.monotonic() - self._loaded_at > 30:
             self.refresh()
 

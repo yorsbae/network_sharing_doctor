@@ -315,3 +315,37 @@ class ServerClientPages(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(HAVE_QT, "PySide6 tidak terpasang")
+class ServerControlUi(ServerClientPages):
+    """Tombol Jalankan server, autostart, dan log aktivitas di halaman Server."""
+
+    def _page(self):
+        from nsd.ui.server_page import ServerPage
+        ctx = self.ctx(healthy_responses())
+        ctx.data_dir = Path(self.tmp.name)
+        return ServerPage(ctx), ctx
+
+    def test_button_toggles_and_log_renders(self):
+        from nsd.application import activity_service, server_control
+        page, ctx = self._page()
+        page._update_run_state()
+        self.assertEqual(page.run_btn.text(), "Jalankan server")
+        with mock.patch.object(server_control, "start", return_value="Server dijalankan di latar belakang.") as st:
+            page._toggle_server()
+            st.assert_called_once()
+        activity_service.ActivityWatcher(FakeAdapter(), ctx.data_dir).emit(
+            "job_new", printer="EPSON", document="faktur.pdf", client="PC-KASIR")
+        page._render_log()
+        self.assertIn("faktur.pdf", page.log_view.toPlainText())
+        with mock.patch.object(server_control, "is_running", return_value=True):
+            page._update_run_state()
+            self.assertEqual(page.run_btn.text(), "Hentikan server")
+            with mock.patch.object(server_control, "stop", return_value="ok") as sp:
+                page._toggle_server()
+                sp.assert_called_once()
+
+    def test_autostart_checkbox_disabled_outside_packaged_windows(self):
+        page, _ = self._page()
+        self.assertFalse(page.autostart_cb.isEnabled())

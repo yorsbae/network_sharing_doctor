@@ -43,6 +43,15 @@ def _build_parser() -> argparse.ArgumentParser:
     m.add_argument("--data-dir", type=Path, help="folder data (mis. untuk mode SYSTEM)")
     m.add_argument("--once", action="store_true", help="satu putaran lalu keluar")
     m.add_argument("--status", action="store_true", help="tampilkan status.json terakhir")
+    sv = sub.add_parser("serve", help="Server NSD (BACA-SAJA): log siapa menyambung/mencetak + monitor kesehatan")
+    sv.add_argument("--role", choices=["client", "server"], default="server")
+    sv.add_argument("--type", dest="ttype", default="printer", choices=["printer", "folder", "both"])
+    sv.add_argument("--host", default="localhost"); sv.add_argument("--share", default="")
+    sv.add_argument("--interval", type=int, default=300, help="Detik antar pemeriksaan kesehatan")
+    sv.add_argument("--poll", type=int, default=3, help="Detik antar pembacaan koneksi/antrean cetak")
+    sv.add_argument("--data-dir", type=Path, default=None, help="folder data (mis. untuk mode SYSTEM)")
+    sv.add_argument("--stop", action="store_true", help="Minta server yang berjalan berhenti")
+    sv.add_argument("--status", action="store_true", help="Tampilkan status server")
     sp = sub.add_parser("start", help="Satu klik: pasang autostart (sekali) + nyalakan monitor + buka GUI")
     sp.add_argument("--host", default="localhost"); sp.add_argument("--share", default="")
     sp.add_argument("--type", dest="ttype", choices=["printer", "folder", "both"], default="both")
@@ -56,6 +65,8 @@ def _build_parser() -> argparse.ArgumentParser:
     au.add_argument("--host", default="localhost")
     au.add_argument("--share", default="")
     au.add_argument("--interval", type=int, default=300)
+    au.add_argument("--task", choices=["monitor", "serve"], default="monitor",
+                    help="serve = monitor + log koneksi/cetak (dipakai tombol di halaman Server)")
     au.add_argument("--i-understand-risk", action="store_true", help="Lewati penjagaan lokasi file (TIDAK disarankan)")
     rb = sub.add_parser("rollback", help="[Fase 2] Pulihkan keadaan sebelum perbaikan")
     rb.add_argument("--case", required=True); rb.add_argument("--action", type=int, required=True)
@@ -233,13 +244,46 @@ def _cmd_monitor(a: argparse.Namespace) -> int:
         lock.release()
 
 
+def _cmd_serve(a: argparse.Namespace) -> int:
+    import json
+    import signal
+    import threading
+
+    from nsd.application import server_control
+    from nsd.application.activity_service import ActivityWatcher
+    from nsd.application.monitor_service import MonitorService
+    from nsd.application.scan_service import ScanService
+    from nsd.bootstrap import bootstrap
+    from nsd.windows.powershell import RealWindowsAdapter
+
+    ctx = bootstrap(a.data_dir)
+    if a.status:
+        print(json.dumps(server_control.read_status(ctx.data_dir) or {"running": False}, ensure_ascii=False, indent=2))
+        return 0
+    if a.stop:
+        print(server_control.stop(ctx.data_dir, wait=5))
+        return 0
+    if not server_control.MIN_POLL <= a.poll <= server_control.MAX_POLL:
+        raise ValueError(f"Poll harus {server_control.MIN_POLL}–{server_control.MAX_POLL} detik.")
+    req = ScanRequest(Role(a.role), TargetType(a.ttype), a.host, a.share, "")
+    adapter = RealWindowsAdapter()          # tanpa izin mutasi: server hanya mengamati
+    mon = MonitorService(ScanService(adapter, ctx.cases, ctx.audit), req, ctx.data_dir, ctx.audit, interval=a.interval)
+    stop = threading.Event()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, lambda *_: stop.set())
+    code = server_control.run_serve(ctx.data_dir, ActivityWatcher(adapter, ctx.data_dir), mon, poll=a.poll, stop_event=stop)
+    if code == 3:
+        print("Server sudah berjalan pada folder data ini.", file=sys.stderr)
+    return code
+
+
 def _cmd_autostart(a: argparse.Namespace) -> int:
     from nsd.application import autostart
     from nsd.windows.privilege import is_elevated
 
     if a.action == "install":
         res = autostart.install(a.mode, host=a.host, share=a.share, target_type=a.ttype, interval=a.interval,
-                                elevated=is_elevated(), i_understand_risk=a.i_understand_risk)
+                                elevated=is_elevated(), i_understand_risk=a.i_understand_risk, task=a.task)
     elif a.action == "uninstall":
         res = autostart.uninstall()
     else:
@@ -276,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
         return {"scan": _cmd_scan, "history": _cmd_history,
                 "rules-validate": _cmd_rules_validate, "clear-history": _cmd_clear,
                 "settings": _cmd_settings, "repair": _cmd_repair, "rollback": _cmd_rollback,
-                "monitor": _cmd_monitor, "start": _cmd_start, "autostart": _cmd_autostart}[args.cmd](args)
+                "monitor": _cmd_monitor, "serve": _cmd_serve, "start": _cmd_start, "autostart": _cmd_autostart}[args.cmd](args)
     except (ValidationError, ValueError) as exc:
         print(f"Input tidak valid: {exc}", file=sys.stderr)
         return 2
