@@ -11,6 +11,8 @@ from pathlib import Path
 APP_DIRNAME = "NetworkSharingDoctor"
 DEFAULT_SETTINGS: dict = {
     "role": "client",
+    "role_chosen": False,        # False sampai pengguna memilih peran di Dashboard (menampilkan ajakan memilih)
+    "last_server": "",           # server terakhir yang dipakai di halaman Client
     "language": "id",
     "theme": "dark",             # system | light | dark
     "policy_level": 1,         # Fase 1: hanya 'Diagnosis saja'

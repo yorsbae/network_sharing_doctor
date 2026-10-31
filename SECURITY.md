@@ -31,6 +31,10 @@ Setelah itu: verifikasi ulang (layanan benar-benar Running; tipe startup tidak b
 - Mode `logon-user` (default) berjalan dengan hak pengguna yang memasang; Task Scheduler `ONLOGON` memicu pada logon pengguna mana pun, kunci instans mencegah duplikat.
 - Task Scheduler/`schtasks`/`icacls` **belum diuji di Windows asli**; hanya pembangunan argumen dan logika penolakan yang diuji. Alternatif tanpa NSD untuk menghidupkan ulang layanan yang mati: tab *Recovery* di Services.msc.
 
+## Pencarian server (halaman Client)
+Tombol *Cari server di jaringan* melakukan sambungan TCP biasa ke **port 445 saja**, pada subnet /24 dari alamat IPv4 **pribadi** komputer ini (maksimum 253 alamat), lalu menutupnya. Tidak ada kredensial dikirim, isi share tidak dibaca, dan tidak ada yang diubah. Hanya berjalan saat pengguna menekan tombol (tidak pernah otomatis, tidak oleh monitor) dan bisa dibatalkan. Alamat publik, loopback, dan link-local tidak dipindai; bila tidak ada alamat pribadi, pencarian tidak mengirim apa pun. Nama komputer dicari lewat DNS balik dan hanya dipakai bila lolos `validate_host`.
+Catatan: pemindaian port dapat tercatat oleh perangkat keamanan jaringan di organisasi yang ketat. Ini mengubah keputusan Fase 1 ("tanpa penemuan otomatis") atas permintaan pemilik proyek; mulai-nya tetap manual.
+
 ## Batasan yang diketahui
 - Aturan dimuat dari berkas lokal **tanpa tanda tangan**. Siapa pun yang bisa menulis folder `rules/` dapat mengubah saran/teks aturan (aksi tetap dibatasi allowlist). Tanda tangan aturan: Fase 6.
 - Folder data portabel di drive jaringan/folder yang dapat ditulis orang lain → aplikasi memperingatkan, tidak memblokir.

@@ -28,7 +28,7 @@ class SettingsPage(QWidget):
         f.addRow("Folder data", theme.label(str(ctx.data_dir), selectable=True))
         f.addRow("Level otomatisasi", theme.label("Diagnosis saja (dikunci pada Fase 1)"))
 
-        role = QComboBox()
+        self.role = role = QComboBox()
         for key, text in ROLE_LABELS.items():
             role.addItem(text, key)
         role.setCurrentIndex(max(0, role.findData(s.get("role"))))
@@ -61,6 +61,14 @@ class SettingsPage(QWidget):
             lay.addWidget(theme.callout("Peringatan", w))
         outer.addWidget(body)
         outer.addStretch(1)
+
+    def showEvent(self, e) -> None:  # noqa: N802
+        super().showEvent(e)
+        i = max(0, self.role.findData(self.ctx.settings.get("role")))      # peran bisa diganti dari Dashboard
+        if i != self.role.currentIndex():
+            self.role.blockSignals(True)
+            self.role.setCurrentIndex(i)
+            self.role.blockSignals(False)
 
     def _repair_section(self) -> QWidget:
         box, bl = panel()

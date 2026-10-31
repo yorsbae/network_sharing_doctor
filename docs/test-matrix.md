@@ -20,3 +20,7 @@ Semua butir di bawah **belum dijalankan** (sandbox pengembangan tidak punya Wind
 | 14 | `autostart install --mode boot-system` dari Program Files: tugas terbuat, `icacls` benar (SID, bukan nama lokal), jalan saat boot tanpa login, akun standar tidak bisa menulis folder data | VM, admin | 11 (juga lokal non-Inggris) | — |
 | 15 | Penolakan mode boot-system dari folder pengguna; `status`/`uninstall` | VM | 11 | — |
 | 16 | Monitor jalan berhari-hari: memori stabil, interval, pemulihan saat jaringan putus | VM lab | 11 | — |
+| 17 | Halaman Server: `Get-Service LanmanServer`, nama komputer (`os_info`), printer dibagikan, alamat IP lokal sesuai jaringan aktif (Wi-Fi/LAN, VPN, banyak adapter) | 2 VM, printer virtual | 11 | — |
+| 18 | Halaman Client: *Cari server di jaringan* menemukan VM server (port 445, nama lewat DNS balik/NetBIOS), perilaku saat DNS balik lambat, dan tidak mengganggu jaringan | 2 VM satu subnet | 11 | — |
+| 19 | Halaman Client: *Lihat printer di server* membedakan server mati, nama salah, akses ditolak, RPC tidak tersedia; alamat `\\SERVER\Printer` dari Win+R memasang printer | 2 VM | 11 | — |
+| 20 | Tampilan Dashboard/Server/Client pada 980x600 dan DPI 125%/150% (tidak terpotong/meluap) | manual | 11 | — |

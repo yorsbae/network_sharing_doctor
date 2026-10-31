@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QHBoxLayout, Q
 from nsd import __version__
 from nsd.bootstrap import bootstrap
 from nsd.ui import icons, theme
+from nsd.ui.client_page import ClientPage
 from nsd.ui.dashboard_page import DashboardPage
 from nsd.ui.diagnose_page import DiagnosePage
 from nsd.ui.history_page import HistoryPage
@@ -19,13 +20,15 @@ from nsd.ui.labels import case_tone
 from nsd.ui.paper_page import PaperPage
 from nsd.ui.printers_page import PrintersPage
 from nsd.ui.queue_page import QueuePage
+from nsd.ui.server_page import ServerPage
 from nsd.ui.settings_page import SettingsPage
 
 
 # (label menu, ikon). Urutan = urutan halaman pada stack.
-NAV = (("Dashboard", "home"), ("Scan printer", "scan"), ("Kode error", "code"), ("Daftar printer", "printer"),
-       ("Antrean cetak", "queue"), ("Kertas", "paper"), ("Log", "log"), ("Pengaturan", "settings"))
-GOTO = {"scan": 1, "errors": 2, "printers": 3, "queue": 4, "log": 6}
+NAV = (("Dashboard", "home"), ("Server", "server"), ("Client", "client"), ("Scan printer", "scan"),
+       ("Kode error", "code"), ("Daftar printer", "printer"), ("Antrean cetak", "queue"), ("Kertas", "paper"),
+       ("Log", "log"), ("Pengaturan", "settings"))
+GOTO = {"server": 1, "client": 2, "scan": 3, "errors": 4, "printers": 5, "queue": 6, "log": 8}
 
 
 def _nav_icon(name: str) -> QIcon:
@@ -51,13 +54,15 @@ class MainWindow(QMainWindow):
         self.dash, self.diagnose = DashboardPage(ctx), DiagnosePage(ctx)
         self.history = HistoryPage(ctx)
         self.errors = ErrorPage(ctx)
-        pages = [self.dash, self.diagnose, self.errors, PrintersPage(ctx), QueuePage(ctx), PaperPage(ctx), self.history,
-                 SettingsPage(ctx)]
+        self.server, self.client = ServerPage(ctx), ClientPage(ctx)
+        pages = [self.dash, self.server, self.client, self.diagnose, self.errors, PrintersPage(ctx), QueuePage(ctx),
+                 PaperPage(ctx), self.history, SettingsPage(ctx)]
         for i, ((name, _ic), w) in enumerate(zip(NAV, pages)):
             self.nav.addItem(name)
-            self.nav.item(i).setToolTip(f"{name} (Ctrl+{i + 1})")
             self.stack.addWidget(w)
-            QShortcut(QKeySequence(f"Ctrl+{i + 1}"), self, activated=lambda i=i: self.nav.setCurrentRow(i))
+            key = str((i + 1) % 10)            # Ctrl+1 sampai Ctrl+9, lalu Ctrl+0 untuk menu ke-10
+            self.nav.item(i).setToolTip(f"{name} (Ctrl+{key})")
+            QShortcut(QKeySequence(f"Ctrl+{key}"), self, activated=lambda i=i: self.nav.setCurrentRow(i))
         QShortcut(QKeySequence.Print, self, activated=self.print_current)
         self.nav.currentRowChanged.connect(self.stack.setCurrentIndex)
         self.nav.setCurrentRow(0)
@@ -66,6 +71,9 @@ class MainWindow(QMainWindow):
         self.dash.goto.connect(lambda key: self.nav.setCurrentRow(GOTO[key]))
         self.diagnose.scanned.connect(self._after_scan)
         self.errors.scan_with.connect(self._scan_with_code)
+        self.server.scan_self.connect(self._scan_this_computer)
+        self.client.check_requested.connect(self._check_server)
+        self.diagnose.find_server.connect(lambda: self.nav.setCurrentRow(GOTO["client"]))
 
         side = QFrame()
         side.setObjectName("sidebar")
@@ -176,6 +184,10 @@ class MainWindow(QMainWindow):
     def _scan_this_computer(self) -> None:
         self.nav.setCurrentRow(GOTO["scan"])
         self.diagnose.scan_this_computer()
+
+    def _check_server(self, host: str, share: str, ttype: str) -> None:
+        self.nav.setCurrentRow(GOTO["scan"])
+        self.diagnose.check_server(host, share, ttype)
 
     def _open_diagnose(self) -> None:
         self.nav.setCurrentRow(GOTO["scan"])

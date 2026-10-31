@@ -83,7 +83,8 @@ class ThemeAndPages(unittest.TestCase):
         from nsd.ui.main_window import MainWindow
         win = MainWindow(self.ctx())
         self.assertEqual([win.nav.item(i).text() for i in range(win.nav.count())],
-                         ["Dashboard", "Scan printer", "Kode error", "Daftar printer", "Antrean cetak", "Kertas", "Log", "Pengaturan"])
+                         ["Dashboard", "Server", "Client", "Scan printer", "Kode error", "Daftar printer", "Antrean cetak", "Kertas", "Log",
+                          "Pengaturan"])
         for mode in ("light", "dark"):
             theme.apply_theme(self.app, mode)
             for i in range(win.nav.count()):
@@ -132,7 +133,7 @@ class ThemeAndPages(unittest.TestCase):
         deadline = time.monotonic() + 20
         while win.diagnose._thread is not None and time.monotonic() < deadline:
             self.app.processEvents(); time.sleep(0.01)
-        self.assertEqual(win.nav.currentRow(), 1)
+        self.assertEqual(win.nav.currentRow(), 3)
         self.assertEqual(win.diagnose.host.text(), "localhost")
         self.assertIsNotNone(win.diagnose.outcome)
         from nsd.ui.labels import case_tone

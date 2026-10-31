@@ -1,0 +1,317 @@
+"""Alur Server dan Client di UI. Offscreen: BUKAN bukti tampilan di Windows."""
+import os
+import tempfile
+import time
+import unittest
+from pathlib import Path
+from unittest import mock
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+try:
+    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtWidgets import QApplication
+    HAVE_QT = True
+except ImportError:  # pragma: no cover
+    HAVE_QT = False
+
+from tests.fixtures.fakes import FakeAdapter, FakeNet, healthy_responses, ok, svc
+
+
+@unittest.skipUnless(HAVE_QT, "PySide6 tidak terpasang")
+class ServerClientPages(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.addCleanup(self._dispose_widgets)
+
+    def _dispose_widgets(self):
+        """Halaman dan jendela yang dibuat tes ikut dibuang; kalau tidak, ganti tema di tes lain jadi lambat."""
+        from PySide6.QtCore import QCoreApplication, QEvent
+        for w in QApplication.topLevelWidgets():
+            w.close()
+            w.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+        self.app.processEvents()
+
+    def ctx(self, responses=None):
+        from nsd.bootstrap import bootstrap
+        ctx = bootstrap(Path(self.tmp.name))
+        ctx.adapter = FakeAdapter(healthy_responses() if responses is None else responses)
+        return ctx
+
+    def wait(self, cond, what="kondisi", seconds=20):
+        end = time.monotonic() + seconds
+        while not cond() and time.monotonic() < end:
+            self.app.processEvents()
+            time.sleep(0.01)
+        self.assertTrue(cond(), f"tidak tercapai: {what}")
+
+    # ---- Server ----
+    def test_server_page_shows_readiness_address_and_copies_guide_for_clients(self):
+        from nsd.ui.server_page import ServerPage
+        page = ServerPage(self.ctx())
+        with mock.patch("nsd.application.server_setup.local_ipv4_addresses", return_value=["192.168.1.10"]):
+            page.refresh()
+            self.wait(lambda: page.readiness is not None, "kesiapan terbaca")
+        self.assertTrue(page.readiness.ready)
+        self.assertEqual(page.steps_lay.count(), 5)
+        self.assertIn("Siap dipakai client", [page.verdict_row.itemAt(i).widget().text() for i in range(page.verdict_row.count())])
+        self.assertTrue(page.copy_guide.isEnabled())
+        page.copy_guide.click()
+        clip = QGuiApplication.clipboard().text()
+        self.assertIn("\\\\PC-KASIR\\EPSON", clip)
+        self.assertIn("\\\\192.168.1.10\\EPSON", clip)
+        self.assertIn("tersalin", page.note.text())
+        self.assertTrue(page.refresh_btn.isEnabled())
+
+    def test_server_page_is_honest_when_nothing_can_be_read_and_never_offers_a_guide(self):
+        from nsd.ui.server_page import ServerPage
+        page = ServerPage(self.ctx({}))
+        page.refresh()
+        self.wait(lambda: page.readiness is not None)
+        self.assertEqual(page.readiness.verdict, ("Belum diperiksa", "unknown"))
+        self.assertFalse(page.copy_guide.isEnabled())
+        self.assertIn("Belum ada printer yang dibagikan", page.addr_lay.itemAt(0).widget().text())
+
+    def test_server_page_failing_step_explains_how_to_fix_it(self):
+        from nsd.ui.server_page import ServerPage
+        page = ServerPage(self.ctx({**healthy_responses(),
+                                    "get_service": lambda service: svc(service, "Stopped" if service == "Spooler" else "Running")}))
+        page.refresh()
+        self.wait(lambda: page.readiness is not None)
+        texts = " ".join(w.text() for w in page.findChildren(type(page.state)))
+        self.assertIn("Print Spooler berjalan", texts)
+        self.assertIn("Berhenti", texts)
+        self.assertIn("Yang bisa dilakukan", texts)
+        self.assertEqual(page.readiness.verdict[1], "fail")
+
+    def test_server_page_scan_button_emits_signal(self):
+        from nsd.ui.server_page import ServerPage
+        page, got = ServerPage(self.ctx()), []
+        page.scan_self.connect(lambda: got.append(1))
+        page.scan_btn.click()
+        self.assertEqual(got, [1])
+
+    # ---- Client ----
+    def test_client_page_guides_step_by_step_and_blocks_check_until_input_is_valid(self):
+        from nsd.ui.client_page import ClientPage
+        page = ClientPage(self.ctx())
+        self.assertFalse(page.check_btn.isEnabled())
+        self.assertIn("server", page.need.text())
+        page.host.setText("PC-KASIR")
+        self.assertFalse(page.check_btn.isEnabled())
+        self.assertIn("share", page.need.text())
+        page.share.setText("EPSON")
+        self.assertTrue(page.check_btn.isEnabled())
+        self.assertEqual(page.address.text(), "\\\\PC-KASIR\\EPSON")
+        self.assertIn("Windows + R", page.install_hint.text())
+        page.host.setText("host; rm -rf /")
+        self.assertFalse(page.check_btn.isEnabled())
+        self.assertEqual(page.address.text(), "-")
+
+    def test_client_check_emits_target_and_remembers_the_server(self):
+        from nsd.ui.client_page import ClientPage
+        ctx = self.ctx()
+        page, got = ClientPage(ctx), []
+        page.check_requested.connect(lambda h, s, t: got.append((h, s, t)))
+        page.host.setText("PC-KASIR")
+        page.share.setText("EPSON")
+        page.check_btn.click()
+        self.assertEqual(got, [("PC-KASIR", "EPSON", "printer")])
+        self.assertEqual(ctx.settings.get("last_server"), "PC-KASIR")
+        again = ClientPage(ctx)                          # halaman baru mengingat server terakhir
+        self.assertEqual(again.host.text(), "PC-KASIR")
+
+    def test_client_folder_kind_needs_a_typed_share_and_hides_printer_listing(self):
+        from nsd.ui.client_page import ClientPage
+        page, got = ClientPage(self.ctx()), []
+        page.check_requested.connect(lambda h, s, t: got.append((h, s, t)))
+        page.kind.setCurrentIndex(1)
+        self.assertFalse(page.list_btn.isEnabled())
+        self.assertIn("Ketik nama share", page.kind_hint.text())
+        page.host.setText("192.168.1.9")
+        page.share.setText("DATA")
+        self.assertEqual(page.install_hint.text(), "")
+        page.check_btn.click()
+        self.assertEqual(got, [("192.168.1.9", "DATA", "folder")])
+
+    def test_client_discovery_lists_servers_and_picking_one_fills_the_host(self):
+        from nsd.application import discovery
+        from nsd.ui.client_page import ClientPage
+        page = ClientPage(self.ctx())
+        res = discovery.DiscoveryResult([discovery.FoundServer("192.168.1.9", "PC-KASIR"), discovery.FoundServer("192.168.1.30")],
+                                        253, ["192.168.1.0/24"])
+        with mock.patch("nsd.application.discovery.discover", return_value=res), \
+             mock.patch("nsd.application.server_setup.local_ipv4_addresses", return_value=["192.168.1.20"]):
+            page.find.click()
+            self.wait(lambda: not page._finding, "pencarian selesai")
+        self.assertEqual(page.found.count(), 2)
+        self.assertIn("Ditemukan 2", page.find_status.text())
+        self.assertEqual(page.find.text(), "Cari server di jaringan")
+        self.assertFalse(page.bar.isVisible())
+        page.found.setCurrentRow(1)
+        self.assertEqual(page.host.text(), "192.168.1.30")
+        page.found.setCurrentRow(0)
+        self.assertEqual(page.host.text(), "PC-KASIR")
+
+    def test_client_discovery_with_nothing_found_explains_and_keeps_manual_entry(self):
+        from nsd.application import discovery
+        from nsd.ui.client_page import ClientPage
+        page = ClientPage(self.ctx())
+        res = discovery.DiscoveryResult([], 253, ["192.168.1.0/24"], note="Tidak ada komputer. Ketik secara manual.")
+        with mock.patch("nsd.application.discovery.discover", return_value=res):
+            page.find.click()
+            self.wait(lambda: not page._finding)
+        self.assertFalse(page.found.isVisible())
+        self.assertIn("manual", page.find_status.text())
+        self.assertTrue(page.host.isEnabled())
+
+    def test_client_lists_shared_printers_and_picking_fills_the_share(self):
+        from nsd.diagnostics.base import NetProbe
+        from nsd.ui.client_page import ClientPage
+        page = ClientPage(self.ctx())
+        page.host.setText("PC-KASIR")
+        with mock.patch.object(NetProbe, "tcp_connect", return_value=(True, "connected")):
+            page.list_btn.click()
+            self.wait(lambda: not page._listing, "daftar printer terbaca")
+        self.assertEqual(page.shares.count(), 1)
+        self.assertIn("1 printer dibagikan", page.list_status.text())
+        self.assertEqual(page.share.text(), "EPSON")           # satu-satunya printer dipilih otomatis
+        self.assertTrue(page.check_btn.isEnabled())
+
+    def test_client_unreachable_server_gives_a_specific_message_not_a_timeout(self):
+        from nsd.diagnostics.base import NetProbe
+        from nsd.ui.client_page import ClientPage
+        page = ClientPage(self.ctx())
+        page.host.setText("PC-KASIR")
+        with mock.patch.object(NetProbe, "tcp_connect", return_value=(False, "timeout")):
+            page.list_btn.click()
+            self.wait(lambda: not page._listing)
+        self.assertIn("port SMB (445)", page.list_status.text())
+        self.assertIn("manual", page.list_status.text())
+        self.assertFalse(page.shares.isVisible())
+
+    def test_client_unknown_name_says_so(self):
+        from nsd.diagnostics.base import NetProbe
+        from nsd.ui.client_page import ClientPage
+        page = ClientPage(self.ctx())
+        page.host.setText("PC-SALAH")
+        with mock.patch.object(NetProbe, "tcp_connect", return_value=(False, "error:gaierror")):
+            page.list_btn.click()
+            self.wait(lambda: not page._listing)
+        self.assertIn("tidak ditemukan", page.list_status.text())
+
+    # ---- Dashboard, Scan, jendela utama ----
+    def test_dashboard_prompts_for_a_role_then_remembers_it_and_opens_the_page(self):
+        from nsd.ui.main_window import GOTO, MainWindow
+        ctx = self.ctx()
+        win = MainWindow(ctx)
+        self.assertIn("Mulai di sini", win.dash.role_title.text())
+        win.dash.a_server.click()
+        self.assertEqual((ctx.settings.get("role"), ctx.settings.get("role_chosen")), ("server", True))
+        self.assertEqual(win.nav.currentRow(), GOTO["server"])
+        self.assertIn("Server", win.dash.role_title.text())
+        win.nav.setCurrentRow(0)
+        win.dash.a_client.click()
+        self.assertEqual(ctx.settings.get("role"), "client")
+        self.assertEqual(win.nav.currentRow(), GOTO["client"])
+        self.assertIn("Client", win.dash.role_title.text())
+
+    def test_client_check_opens_scan_prefilled_and_runs_it(self):
+        from nsd.application.scan_service import ScanService
+        from nsd.models import Role
+        from nsd.ui.main_window import GOTO, MainWindow
+        ctx = self.ctx()
+        ctx.scan_service = lambda: ScanService(ctx.adapter, ctx.cases, ctx.audit, net=FakeNet())
+        win = MainWindow(ctx)
+        win.nav.setCurrentRow(GOTO["client"])
+        win.client.host.setText("SERVER01")
+        win.client.share.setText("EPSON")
+        win.client.check_btn.click()
+        self.wait(lambda: win.diagnose._thread is None and win.diagnose.outcome is not None, "scan selesai")
+        self.assertEqual(win.nav.currentRow(), GOTO["scan"])
+        req = win.diagnose.outcome.request
+        self.assertEqual((req.role, req.target_type.value, req.host, req.share), (Role.CLIENT, "printer", "SERVER01", "EPSON"))
+        self.assertEqual(win.diagnose.role.currentIndex(), 0)
+
+    def test_scan_page_find_server_goes_to_client_and_role_switch_fixes_the_host(self):
+        from nsd.ui.main_window import GOTO, MainWindow
+        win = MainWindow(self.ctx())
+        d = win.diagnose
+        self.assertFalse(d.find_btn.isHidden())
+        d.find_btn.click()
+        self.assertEqual(win.nav.currentRow(), GOTO["client"])
+        d.role.setCurrentIndex(1)                       # server: komputer ini
+        self.assertEqual(d.host.text(), "localhost")
+        self.assertTrue(d.find_btn.isHidden())
+        d.role.setCurrentIndex(0)                       # kembali ke client: localhost bukan target yang masuk akal
+        self.assertEqual(d.host.text(), "")
+        self.assertFalse(d.find_btn.isHidden())
+        d.host.setText("SERVER01")
+        d.role.setCurrentIndex(1)
+        self.assertEqual(d.host.text(), "SERVER01")     # isian pengguna tidak ditimpa
+
+    def test_server_page_scan_button_scans_this_computer_as_server(self):
+        from nsd.application.scan_service import ScanService
+        from nsd.models import Role
+        from nsd.ui.main_window import GOTO, MainWindow
+        ctx = self.ctx()
+        ctx.scan_service = lambda: ScanService(ctx.adapter, ctx.cases, ctx.audit, net=FakeNet())
+        win = MainWindow(ctx)
+        win.server.scan_btn.click()
+        self.wait(lambda: win.diagnose._thread is None and win.diagnose.outcome is not None)
+        self.assertEqual(win.nav.currentRow(), GOTO["scan"])
+        self.assertIs(win.diagnose.outcome.request.role, Role.SERVER)
+
+    def test_settings_role_follows_the_choice_made_on_the_dashboard(self):
+        from nsd.ui.main_window import GOTO, MainWindow
+        ctx = self.ctx()
+        win = MainWindow(ctx)
+        win.show()
+        self.app.processEvents()
+        win.dash.a_server.click()
+        win.nav.setCurrentRow(win.stack.count() - 1)
+        self.app.processEvents()
+        self.assertEqual(win.stack.currentWidget().role.currentData(), "server")
+        win.close()
+
+    def test_scrolling_pages_never_overflow_horizontally_at_the_minimum_window_size(self):
+        from PySide6.QtWidgets import QScrollArea
+        from nsd.ui.main_window import GOTO, MainWindow
+        win = MainWindow(self.ctx())
+        win.resize(980, 600)
+        win.show()
+        for key in ("server", "client"):
+            win.nav.setCurrentRow(GOTO[key])
+            self.wait(lambda: True)
+            self.app.processEvents()
+            area = win.stack.currentWidget().findChild(QScrollArea)
+            self.assertEqual(area.horizontalScrollBar().maximum(), 0, key)
+        win.nav.setCurrentRow(0)
+        self.app.processEvents()
+        area = win.dash.findChild(QScrollArea)
+        self.assertEqual(area.horizontalScrollBar().maximum(), 0, "dashboard")
+        nav = win.nav
+        self.assertEqual(nav.verticalScrollBar().maximum(), 0, "semua menu muat tanpa menggulir pada tinggi 600")
+        win.close()
+
+    def test_every_new_page_renders_in_both_themes_at_the_minimum_window_size(self):
+        from nsd.ui import theme
+        from nsd.ui.main_window import GOTO, MainWindow
+        win = MainWindow(self.ctx())
+        win.resize(980, 600)
+        for mode in ("light", "dark"):
+            theme.apply_theme(self.app, mode)
+            for key in ("server", "client"):
+                win.nav.setCurrentRow(GOTO[key])
+                self.app.processEvents()
+                self.assertFalse(win.grab().isNull())
+        theme.apply_theme(self.app, "light")
+
+
+if __name__ == "__main__":
+    unittest.main()

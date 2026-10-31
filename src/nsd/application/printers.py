@@ -67,8 +67,7 @@ def _fail(op) -> Listing:
     return Listing([], False, op.error or "Tidak dapat dibaca.")
 
 
-def list_printers(adapter) -> Listing:
-    op = adapter.run("list_local_printers")
+def _parse_printers(op) -> Listing:
     if not op.ok:
         return _fail(op)
     out = []
@@ -78,6 +77,31 @@ def list_printers(adapter) -> Listing:
             out.append(PrinterInfo(str(d["Name"]), text, tone, str(d.get("Driver") or ""), str(d.get("Port") or ""),
                                    bool(d.get("Shared")), str(d.get("ShareName") or "")))
     return Listing(out)
+
+
+def list_printers(adapter) -> Listing:
+    return _parse_printers(adapter.run("list_local_printers"))
+
+
+def list_remote_printers(adapter, host: str, net=None) -> Listing:
+    """Printer yang dibagikan server (BACA-SAJA). Port SMB dicek dulu agar pesan galat jelas, bukan batas waktu PowerShell."""
+    from nsd.diagnostics.base import NetProbe
+    from nsd.diagnostics.printer import REMOTE_TEXT, classify_printer_error
+
+    ok, reason = (net or NetProbe()).tcp_connect(host, 445)
+    if not ok:
+        if reason == "error:gaierror":
+            return Listing([], False, "Nama komputer tidak ditemukan. Periksa ejaan, atau pakai alamat IP server.")
+        return Listing([], False, "Server tidak terjangkau di port SMB (445): komputer mati, beda jaringan, "
+                                  "atau firewall memblokir.")
+    op = adapter.run("list_remote_printers", host=host)
+    if not op.ok:
+        if op.unsupported:
+            return _fail(op)
+        return Listing([], False, REMOTE_TEXT[classify_printer_error(op.error)])
+    lst = _parse_printers(op)
+    lst.items = [p for p in lst.items if p.shared and p.share_name]
+    return lst
 
 
 def list_jobs(adapter) -> Listing:

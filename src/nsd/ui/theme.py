@@ -207,7 +207,7 @@ QLabel#sideMeta {{ color: {t.side_muted}; font-size: 11px; }}
 QFrame#sideDivider {{ background: {t.side_hover}; max-height: 1px; min-height: 1px; border: 0; }}
 QListWidget#nav {{ background: transparent; border: 2px solid transparent; border-radius: 8px; outline: 0;
     color: {t.side_text}; font-size: 14px; }}
-QListWidget#nav::item {{ padding: 10px 12px; margin: 2px 0; border-radius: 8px; color: {t.side_text}; }}
+QListWidget#nav::item {{ padding: 8px 12px; margin: 2px 0; border-radius: 8px; color: {t.side_text}; }}
 QListWidget#nav::item:hover {{ background: {t.side_hover}; }}
 QListWidget#nav::item:selected {{ background: {t.side_sel}; color: #FFFFFF; border: 0; }}
 QListWidget#nav[kbfocus="true"]::item:selected {{ border: 2px solid #FFFFFF; }}

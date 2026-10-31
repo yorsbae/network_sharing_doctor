@@ -74,6 +74,7 @@ class ExportDialog(QDialog):
 
 class DiagnosePage(QWidget):
     scanned = Signal()
+    find_server = Signal()        # buka halaman Client untuk mencari server
 
     def __init__(self, ctx) -> None:
         super().__init__()
@@ -82,7 +83,8 @@ class DiagnosePage(QWidget):
         lay.setContentsMargins(32, 28, 32, 20)
         lay.setSpacing(14)
         lay.addWidget(theme.header(
-            "Scan printer", "Isi target yang gagal diakses, lalu jalankan pemeriksaan. Sistem tidak diubah."))
+            "Scan printer", "Isi target yang gagal diakses, lalu jalankan pemeriksaan. Sistem tidak diubah. "
+                            "Belum tahu nama servernya? Klik Cari server."))
 
         formbox, form_lay = panel()
         grid = QGridLayout()
@@ -96,7 +98,16 @@ class DiagnosePage(QWidget):
         self.ttype = QComboBox()
         self.ttype.addItems(["Printer dan folder", "Printer", "Folder"])
         self.host = QLineEdit()
-        self.host.setPlaceholderText("Nama komputer atau alamat IP server")
+        self.host.setPlaceholderText("Nama atau IP server")
+        self.find_btn = QPushButton("Cari server…")
+        self.find_btn.setToolTip("Buka halaman Client untuk mencari server di jaringan")
+        self.find_btn.clicked.connect(self.find_server.emit)
+        host_box = QWidget()
+        hb = QHBoxLayout(host_box)
+        hb.setContentsMargins(0, 0, 0, 0)
+        hb.setSpacing(8)
+        hb.addWidget(self.host, 1)
+        hb.addWidget(self.find_btn)
         self.share = QLineEdit()
         self.share.setPlaceholderText("Nama share folder / printer")
         self.error = QLineEdit()
@@ -105,11 +116,11 @@ class DiagnosePage(QWidget):
             edit.returnPressed.connect(self.start)
         for row_, col, text, field, span in (
             (0, 0, "Peran komputer ini", self.role, 1), (0, 1, "Jenis target", self.ttype, 1),
-            (2, 0, "Server / target", self.host, 1), (2, 1, "Nama share", self.share, 1),
+            (2, 0, "Server / target", host_box, 1), (2, 1, "Nama share", self.share, 1),
             (4, 0, "Error", self.error, 2),
         ):
             cap = theme.label(text, "caption")
-            cap.setBuddy(field)
+            cap.setBuddy(self.host if field is host_box else field)
             if row_:
                 cap.setContentsMargins(0, 8, 0, 0)
             grid.addWidget(cap, row_, col, 1, span)
@@ -117,6 +128,8 @@ class DiagnosePage(QWidget):
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
         lay.addWidget(formbox)
+        self.role.currentIndexChanged.connect(self._role_changed)
+        self._role_changed(self.role.currentIndex())
 
         row = QHBoxLayout()
         self.go = QPushButton("Mulai scan")
@@ -173,6 +186,31 @@ class DiagnosePage(QWidget):
         self.results.addWidget(self.empty)
         self.results.addWidget(split)
         lay.addWidget(self.results, 1)
+
+    def _role_changed(self, index: int) -> None:
+        """Server = komputer ini (localhost); client = komputer lain, jadi 'localhost' tidak masuk akal sebagai target."""
+        server = index == 1
+        self.find_btn.setVisible(not server)
+        self.host.setPlaceholderText("localhost untuk komputer ini" if server else "Nama atau IP server")
+        text = self.host.text().strip().lower()
+        if server and not text:
+            self.host.setText("localhost")
+        elif not server and text == "localhost":
+            self.host.clear()
+
+    def prefill(self, role: str, ttype: str, host: str, share: str = "", error: str = "") -> None:
+        self.role.setCurrentIndex(0 if role == "client" else 1)
+        self.ttype.setCurrentIndex({"both": 0, "printer": 1, "folder": 2}.get(ttype, 0))
+        self.host.setText(host)
+        self.share.setText(share)
+        self.error.setText(error)
+
+    def check_server(self, host: str, share: str, ttype: str) -> None:
+        """Dari halaman Client: periksa koneksi ke printer/folder di server tanpa mengisi form lagi."""
+        if self._thread is not None:
+            return
+        self.prefill("client", ttype, host, share)
+        self.start()
 
     def scan_this_computer(self) -> None:
         """Dashboard > Scan sekarang: periksa printer dan spooler di komputer ini tanpa mengisi form."""

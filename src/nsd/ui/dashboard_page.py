@@ -10,7 +10,7 @@ from nsd.application import printers
 from nsd.models import Status
 from nsd.ui import theme
 from nsd.ui.labels import fmt_time
-from nsd.ui.widgets.cards import StatCard, action_button, panel
+from nsd.ui.widgets.cards import StatCard, action_button, panel, scroll_body
 from nsd.ui.widgets.worker import run_async
 
 _NETWORK_LAYERS = {"Jaringan", "Resolusi nama", "Layanan dan protokol", "Firewall", "Sharing", "Autentikasi dan izin"}
@@ -22,14 +22,12 @@ _TEXT = {"fail": "Gagal", "warning": "Perhatian", "unknown": "Belum diperiksa", 
 class DashboardPage(QWidget):
     start_scan = Signal()     # pindai komputer ini sekarang
     open_scan = Signal()      # buka halaman Scan printer (isi target sendiri)
-    goto = Signal(str)        # 'printers' | 'queue' | 'log'
+    goto = Signal(str)        # 'server' | 'client' | 'printers' | 'queue' | 'log'
 
     def __init__(self, ctx) -> None:
         super().__init__()
         self.ctx, self._loaded_at = ctx, 0.0
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(32, 28, 32, 24)
-        lay.setSpacing(18)
+        lay = scroll_body(self, spacing=18)
 
         self.last_scan = theme.label("", "caption", wrap=False)
         self.scan_btn = QPushButton("Scan sekarang")
@@ -38,16 +36,32 @@ class DashboardPage(QWidget):
         lay.addWidget(theme.header("Dashboard", "Ringkasan printer, spooler, dan hasil pemeriksaan terakhir.",
                                    self.last_scan, self.scan_btn))
 
-        grid = QGridLayout()
-        grid.setSpacing(14)
+        role_box, rl = panel()
+        self.role_title = theme.label("", "section")
+        self.role_text = theme.label("", "caption")
+        rl.addWidget(self.role_title)
+        rl.addWidget(self.role_text)
+        pick = QHBoxLayout()
+        pick.setSpacing(14)
+        self.a_server = action_button("server", "Server", "Printer ada di komputer ini")
+        self.a_client = action_button("client", "Client", "Printer ada di komputer lain")
+        self.a_server.clicked.connect(lambda: self._pick_role("server"))
+        self.a_client.clicked.connect(lambda: self._pick_role("client"))
+        pick.addWidget(self.a_server, 1)
+        pick.addWidget(self.a_client, 1)
+        rl.addLayout(pick)
+        lay.addWidget(role_box)
+        self._show_role()
+
+        self.grid, self._cols = QGridLayout(), 0
+        self.grid.setSpacing(14)
         self.c_printers = StatCard("printer", "Status printer")
         self.c_spooler = StatCard("spooler", "Print spooler")
         self.c_network = StatCard("network", "Berbagi jaringan")
         self.c_total = StatCard("queue", "Antrean cetak")
-        for i, c in enumerate((self.c_printers, self.c_spooler, self.c_network, self.c_total)):
-            grid.addWidget(c, 0, i)
-            grid.setColumnStretch(i, 1)
-        lay.addLayout(grid)
+        self.cards = (self.c_printers, self.c_spooler, self.c_network, self.c_total)
+        self._flow(4)
+        lay.addLayout(self.grid)
 
         row = QHBoxLayout()
         row.setSpacing(14)
@@ -89,8 +103,44 @@ class DashboardPage(QWidget):
             lay.addWidget(theme.callout("Peringatan", w))
         self.refresh()
 
+    def _flow(self, cols: int) -> None:
+        """Empat kartu sebaris bila lebar cukup; dua kolom bila sempit agar teks tidak terpotong."""
+        if cols == self._cols:
+            return
+        self._cols = cols
+        for i in range(4):
+            self.grid.setColumnStretch(i, 0)
+        for i, c in enumerate(self.cards):
+            self.grid.removeWidget(c)
+            self.grid.addWidget(c, i // cols, i % cols)
+        for i in range(cols):
+            self.grid.setColumnStretch(i, 1)
+
+    def resizeEvent(self, e) -> None:  # noqa: N802
+        super().resizeEvent(e)
+        self._flow(4 if self.width() >= 900 else 2)
+
+    def _pick_role(self, key: str) -> None:
+        self.ctx.settings.set("role", key)
+        self.ctx.settings.set("role_chosen", True)
+        self._show_role()
+        self.goto.emit(key)
+
+    def _show_role(self) -> None:
+        if not self.ctx.settings.get("role_chosen"):
+            self.role_title.setText("Mulai di sini: untuk apa komputer ini?")
+            self.role_text.setText("Server adalah komputer yang printernya terpasang dan dibagikan. Client adalah komputer lain "
+                                   "yang ingin memakai printer itu. Pilih satu; bisa diganti kapan saja.")
+            return
+        server = self.ctx.settings.get("role") == "server"
+        self.role_title.setText("Komputer ini berperan sebagai " + ("Server" if server else "Client"))
+        self.role_text.setText(
+            "Buka Server untuk memeriksa kesiapan dan menyalin alamat untuk client." if server else
+            "Buka Client untuk mencari server dan memeriksa koneksi ke printernya.")
+
     def showEvent(self, e) -> None:  # noqa: N802
         super().showEvent(e)
+        self._show_role()
         if time.monotonic() - self._loaded_at > 30:       # jangan menjalankan PowerShell tiap pindah menu
             self.refresh()
 

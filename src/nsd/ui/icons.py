@@ -20,6 +20,8 @@ _PATHS = {
     "spooler": '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
     "refresh": '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
     "code": '<path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/>',
+    "server": '<rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01M7 17h.01"/>',
+    "client": '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
     "check": '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
 }
 

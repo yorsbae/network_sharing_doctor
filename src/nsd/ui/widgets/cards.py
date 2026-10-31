@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QListWidget, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 from nsd.ui import icons, theme
 
@@ -14,6 +14,40 @@ def panel(inner_margins=(18, 16, 18, 16), spacing=10) -> tuple[QFrame, QVBoxLayo
     lay.setContentsMargins(*inner_margins)
     lay.setSpacing(spacing)
     return f, lay
+
+
+def clear(layout) -> None:
+    """Kosongkan layout beserta anak-anaknya."""
+    while layout.count():
+        item = layout.takeAt(0)
+        w = item.widget()
+        if w:
+            w.deleteLater()
+        elif item.layout():
+            clear(item.layout())
+
+
+def scroll_body(page: QWidget, spacing: int = 14) -> QVBoxLayout:
+    """Halaman yang bisa digulir: kembalikan layout isi. Isi tidak terjepit di jendela kecil."""
+    outer = QVBoxLayout(page)
+    outer.setContentsMargins(0, 0, 0, 0)
+    area = QScrollArea()
+    area.setWidgetResizable(True)
+    area.setFrameShape(QFrame.NoFrame)
+    body = QWidget()
+    lay = QVBoxLayout(body)
+    lay.setContentsMargins(32, 28, 32, 24)
+    lay.setSpacing(spacing)
+    area.setWidget(body)
+    outer.addWidget(area)
+    return lay
+
+
+def fit_list(lst: QListWidget, row_height: int = 30, max_rows: int = 5) -> None:
+    """Tinggi daftar mengikuti jumlah baris (dengan batas), supaya tidak ada ruang kosong besar."""
+    for i in range(lst.count()):
+        lst.item(i).setSizeHint(QSize(0, row_height))
+    lst.setFixedHeight(min(max(lst.count(), 1), max_rows) * row_height + 8)
 
 
 class StatCard(QFrame):

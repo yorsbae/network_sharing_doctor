@@ -17,7 +17,7 @@ def classify_printer_error(text: str) -> str:
     return "other"
 
 
-_REMOTE_TEXT = {
+REMOTE_TEXT = {
     "access_denied": "Akses ke spooler server ditolak untuk akun saat ini (belum tentu printer share bermasalah).",
     "rpc_unavailable": "Layanan RPC/Spooler di server tidak dapat dihubungi (firewall atau spooler server mati).",
     "unreachable": "Server tidak terjangkau saat meminta daftar printer.",
@@ -49,7 +49,7 @@ def check_remote_printers(ctx: DiagContext) -> list[CheckResult]:
         return [result("printer.remote_share", Layer.SHARING, title, Status.UNKNOWN, op_failure_detail(op))]
     if not op.ok:
         cat = classify_printer_error(op.error)
-        return [result("printer.remote_share", Layer.AUTH, title, Status.FAIL, _REMOTE_TEXT[cat],
+        return [result("printer.remote_share", Layer.AUTH, title, Status.FAIL, REMOTE_TEXT[cat],
                        category=cat, error=op.error[:300])]
     printers = as_list(op.data)
     for p in printers:

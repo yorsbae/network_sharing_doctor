@@ -103,9 +103,9 @@ Jawaban desain: sharing tidak butuh NSD berjalan (sudah autostart bawaan Windows
 - `result(..., status=...)` bentrok dengan parameter `status` → pemeriksaan printer diam-diam jadi *internal error* → parameter dijadikan posisional-saja, kunci bukti diganti `printer_status`.
 
 ## Keputusan yang saya ambil sendiri (perlu persetujuan Anda)
-1. Fase 1 **tanpa penemuan otomatis** dan **tanpa tes cetak** (Bagian C #5, #6).
+1. Fase 1 **tanpa penemuan otomatis** dan **tanpa tes cetak** (Bagian C #5, #6). *Diperbarui 2026-10-31: pencarian server kini ada, dimulai manual oleh pengguna dan dibatasi (lihat SECURITY.md). Tes cetak tetap belum ada.*
 2. Nama share dengan `& % ' ; ( ) [ ] { } ~ # @ , = + ^ !` ditolak (mis. "R&D" tidak didukung). Trade-off keamanan; bisa dilonggarkan.
-3. UI baru 4 dari 8 menu di visi (Beranda, Diagnosa, Riwayat, Pengaturan). Mode Server/Client sebagai halaman terpisah, "Printer dan Ukuran Kertas", dan "Folder Sharing" menunggu Fase 3–4.
+3. UI baru 4 dari 8 menu di visi (Beranda, Diagnosa, Riwayat, Pengaturan). Mode Server/Client sebagai halaman terpisah kini ada (2026-10-31); "Printer dan Ukuran Kertas" dan "Folder Sharing" menunggu Fase 3–4.
 4. Tombol "Perbaiki Otomatis" ada tetapi **dinonaktifkan** dengan penjelasan (Fase 1 baca-saja).
 5. Tes memakai `unittest` (stdlib) karena pytest tidak tersedia; tetap kompatibel pytest.
 6. Riwayat lokal menyimpan target apa adanya; penyamaran hanya pada ekspor (lihat SECURITY.md).
@@ -113,7 +113,7 @@ Jawaban desain: sharing tidak butuh NSD berjalan (sudah autostart bawaan Windows
 ## Belum dikerjakan dari visi (sesuai urutan fase)
 - Pemilihan printer di server via Registry + validasi ke printer Windows asli (A.4.3) — Fase 3
 - Ukuran kertas khusus di client, mis. 210×330 mm (A.4.4) — Fase 3/4
-- Penemuan server otomatis (A.4.2) — Fase 3
+- Penemuan server otomatis (A.4.2): versi awal ada (pindai port 445 di /24, manual); belum NetBIOS/mDNS, belum diuji di Windows asli
 - Eksekutor untuk operasi selain `start_service`; elevasi UAC mandiri (kini pengguna harus menjalankan sebagai admin) — Fase 2 lanjutan
 - Izin share vs NTFS secara terpisah (A.5.6) — Fase 3
 - Penandatanganan aturan/rilis, helper elevasi terbatas — Fase 6
@@ -138,3 +138,4 @@ Jawaban desain: sharing tidak butuh NSD berjalan (sudah autostart bawaan Windows
 - 2026-10-14 — Perapian `vision.md`; kerangka proyek; fondasi keselamatan; adapter Windows; mesin diagnostik; mesin aturan + 25 aturan; SQLite; laporan; CLI; UI PySide6; 59 tes; dokumen pendukung.
 - 2026-10-15 — Fase 2 (sebagian): `apply()` bergerbang, `RepairExecutor` (snapshot→terapkan→verifikasi→rollback→audit), CLI `settings/repair/rollback`, rescan; 28 tes baru (total 87).
 - 2026-10-15 — Monitor latar belakang + autostart Task Scheduler; `ScanService.save()` dipisah dari `run(persist=)`; 17 tes baru (total 104); uji proses nyata (kunci instans, SIGTERM).
+- 2026-10-31 — Katalog error 0x (printer, folder, master list popup; 21 aturan petunjuk baru, total 46). Alur Server dan Client: halaman Server (kesiapan + alamat + petunjuk untuk client), halaman Client (cari server, pilih printer, periksa koneksi), panel peran di Dashboard, isian otomatis Scan printer; 37 tes baru. Halaman dirender offscreen di Linux pada 980x600 (terang dan gelap) dan diperbaiki dari hasil tangkapan layar (sidebar, Dashboard); **belum dirender di Windows asli** (test-matrix #17 sampai #20).

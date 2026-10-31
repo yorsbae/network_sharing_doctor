@@ -19,14 +19,33 @@ Di non-Windows, pemeriksaan khusus Windows ditandai **Belum diperiksa**; pemerik
 Kode keluar `scan`: 0 = tidak ada pemeriksaan gagal, 1 = ada yang gagal, 2 = input tidak valid.
 
 ## Tampilan
-Menu: Dashboard, Scan printer, Daftar printer, Antrean cetak, Kertas, Log, Pengaturan. Arah desain dan pagar anti-slop ada di [`DESIGN.md`](DESIGN.md).
+Menu: Dashboard, Server, Client, Scan printer, Kode error, Daftar printer, Antrean cetak, Kertas, Log, Pengaturan. Arah desain dan pagar anti-slop ada di [`DESIGN.md`](DESIGN.md).
 
-## Alur satu klik (server + client + autostart)
+## Server dan client: cara memakainya
+**Server** = komputer yang printernya terpasang dan dibagikan. **Client** = komputer lain yang mencetak ke printer itu.
+**Tidak ada program server yang harus dijalankan**: Windows sendiri melayani client selama printer dibagikan serta layanan
+Print Spooler dan Server berjalan. NSD hanya memeriksa dan memandu. Di Dashboard, klik **Server** atau **Client** sesuai peran komputer itu.
+
+Di komputer **server** (menu Server):
+1. Lihat daftar kesiapan: Print Spooler, layanan Server, profil jaringan, firewall File and Printer Sharing, printer dibagikan.
+2. Untuk yang berstatus *Berhenti*, *Nonaktif*, atau *Belum dibagikan*, ikuti "Yang bisa dilakukan" di bawahnya, lalu klik **Periksa ulang**.
+3. Bila *Siap dipakai client*, klik **Salin alamat** (`\\NAMA-KOMPUTER\NamaPrinter`) atau **Salin petunjuk untuk client** lalu kirim ke pengguna.
+4. Komputer server harus menyala dan tersambung ke jaringan saat client mencetak.
+
+Di komputer **client** (menu Client):
+1. **Pilih server**: klik *Cari server di jaringan* (memeriksa port 445 di jaringan lokal, hanya saat diklik) atau ketik nama/alamat IP server.
+2. **Pilih printer atau folder**: klik *Lihat printer di server* lalu pilih printernya. Untuk folder, ketik nama share dari pemilik server.
+3. **Periksa koneksi**: hasilnya muncul di Scan printer dengan penjelasan dan langkah perbaikan. Untuk memasang printer di Windows: tekan Windows + R, tempel alamat `\\SERVER\Printer`, Enter.
+
+Tidak ditemukan saat mencari? Server mati/beda jaringan, atau firewall di server memblokir File and Printer Sharing. Ketik alamat IP server secara manual.
+Lewat CLI: `nsd scan --role server --host localhost --type printer` (server) dan `nsd scan --role client --host SERVER01 --share EPSON --type printer` (client).
+
+## Alur satu klik (monitor + autostart + GUI)
 Klik ganda `NSD.exe` (atau `NSD-Start.bat`) = `nsd start`:
 1. **Autostart** dipasang sekali (Task Scheduler, mode `logon-user`, tanpa admin; hanya build terpaket, idempoten).
-2. **Server side**: monitor baca-saja dinyalakan di latar belakang tanpa jendela (satu instans per folder data).
-3. **Client side**: GUI dibuka (satu instans; klik kedua tidak membuka jendela baru).
-Setelah itu monitor otomatis jalan setiap login. Opsi: `--no-gui` (hanya server), `--no-monitor`, `--no-autostart`, `--host/--share/--type/--interval`.
+2. **Monitor latar belakang**: baca-saja, dinyalakan tanpa jendela (satu instans per folder data). Ini bukan "server" yang dibutuhkan agar sharing bekerja; lihat bagian di atas.
+3. **GUI**: dibuka (satu instans; klik kedua tidak membuka jendela baru).
+Setelah itu monitor otomatis jalan setiap login. Opsi: `--no-gui` (hanya monitor), `--no-monitor`, `--no-autostart`, `--host/--share/--type/--interval`.
 `scripts\NSD-Autostart-On.bat` / `NSD-Autostart-Off.bat` memasang/menghapus autostart secara manual. `build_windows.ps1` menyalin ketiga `.bat` ke `dist\NSD\`.
 Belum diuji di Windows asli (lihat progres.md).
 

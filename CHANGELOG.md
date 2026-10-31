@@ -1,5 +1,14 @@
 # Changelog
 
+## Belum dirilis: alur Server dan Client
+- Menu baru **Server**: daftar kesiapan (Print Spooler, layanan Server, profil jaringan, firewall, printer dibagikan) dengan langkah manual untuk yang belum siap, alamat `\\NAMA\Printer` yang bisa disalin untuk client, dan "Salin petunjuk untuk client". Menyatakan bahwa tidak ada program server yang perlu dijalankan.
+- Menu baru **Client**: tiga langkah (pilih server, pilih printer atau folder, periksa koneksi). Pencarian server di jaringan lokal (hanya port 445, /24 pribadi, hanya saat diklik, bisa dibatalkan), daftar printer yang dibagikan server, ingat server terakhir, dan "Periksa koneksi" langsung menjalankan scan terisi.
+- Dashboard: panel "Mulai di sini" untuk memilih peran komputer; pilihan tersimpan dan menyinkronkan Pengaturan. Kartu statistik jadi dua kolom saat sempit (teks tidak lagi terpotong).
+- Scan printer: tombol "Cari server…", host `localhost` terisi otomatis untuk peran Server dan dibersihkan saat kembali ke Client.
+- Halaman Dashboard, Server, dan Client bisa digulir; jarak menu sidebar dirapatkan agar 10 menu muat di tinggi 600. Pintasan Ctrl+1 sampai Ctrl+9 dan Ctrl+0.
+- README menjelaskan alur Server dan Client; istilah "server side" pada alur satu klik diganti "monitor latar belakang" agar tidak menyesatkan.
+- Tes: `tests/unit/test_server_client_flow.py` dan `tests/ui/test_server_client_pages.py` (termasuk tes tanpa overflow horizontal pada 980x600).
+
 ## Belum dirilis: katalog error printer dan folder sharing
 - 21 aturan petunjuk baru (hanya-kode, baca-saja, keyakinan rendah) untuk kode 0x Printer Sharing (0x00000040, 0x0000007C, 0x00000BCB, 0x00000002, 0x0000000A, 0x00000057, 0x0000007E, 0x0000007F, 0x00000035, 0x00000043, 0x0000003A) dan folder sharing (0x80004005, 0x80070032, 0x80070079, 0x80070020, 0x80070021, 0x80070003, 0x80070002, 0x80070006, 0x80070057, 0x80070015). Total aturan 46.
 - `docs/error-catalog.md`: tabel kode printer dan folder beserta aturannya, dan master list 104 popup error printer (referensi; pesan tanpa kode 0x belum menjadi aturan).
