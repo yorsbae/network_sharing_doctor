@@ -166,7 +166,7 @@ class RealAdapterGuards(unittest.TestCase):
 
     def test_mutating_ops_are_minimal_and_separate(self):
         self.assertEqual(set(MUTATING_OPERATIONS), {"start_service", "stop_service", "set_network_private",
-                                                    "enable_sharing_firewall", "share_printer"})
+                                                    "enable_sharing_firewall", "share_printer", "add_printer_connection"})
         self.assertFalse(set(MUTATING_OPERATIONS) & set(READ_OPERATIONS))
         for spec in MUTATING_OPERATIONS.values():
             self.assertNotIn("-Force", spec.script)

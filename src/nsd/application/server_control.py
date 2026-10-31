@@ -126,13 +126,14 @@ def run_serve(data_dir: Path, watcher: ActivityWatcher, monitor: MonitorService 
                 watcher.emit("warn", message=f"Putaran gagal: {exc.__class__.__name__}")
             ticks += 1
             _write_status(data_dir, running=True, pid=os.getpid(), started_at=started, poll_seconds=poll, ticks=ticks,
+                          clients=list((watcher.seen_sessions or {}).values()),
                           updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"), read_only=True)
             if (data_dir / STOP).exists() or (max_ticks is not None and ticks >= max_ticks):
                 break
             stop_ev.wait(poll)
         stop_ev.set()
         watcher.emit("server_stop")
-        _write_status(data_dir, running=False, pid=os.getpid(), started_at=started, poll_seconds=poll, ticks=ticks,
+        _write_status(data_dir, running=False, pid=os.getpid(), started_at=started, poll_seconds=poll, ticks=ticks, clients=[],
                       updated_at=time.strftime("%Y-%m-%dT%H:%M:%S"), read_only=True)
         try:
             (data_dir / STOP).unlink()

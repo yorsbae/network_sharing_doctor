@@ -22,6 +22,7 @@ from nsd.security.allowlist import (
     ValidationError,
     validate_host,
     validate_printer_name,
+    validate_unc,
     validate_service,
     validate_share_plain,
     validate_unc,
@@ -168,10 +169,18 @@ MUTATING_OPERATIONS: dict[str, ReadOp] = {
         "Set-Printer -Name $env:NSD_P_PRINTER -Shared $true -ShareName $env:NSD_P_SHARE -ErrorAction Stop; "
         f"@(Get-Printer -Name $env:NSD_P_PRINTER | {_PRINTER_PROJ}) | ConvertTo-Json -Compress",
         {"printer": validate_printer_name, "share": validate_share_plain}, timeout=45),
+    # Sisi client: menambah koneksi printer untuk pengguna ini. Tidak butuh administrator.
+    "add_printer_connection": ReadOp(
+        "Add-Printer -ConnectionName $env:NSD_P_UNC -ErrorAction Stop; "
+        f"@(Get-Printer | {_PRINTER_PROJ}) | ConvertTo-Json -Compress",
+        {"unc": validate_unc}, timeout=120),
     "stop_service": ReadOp(
         "Stop-Service -Name $env:NSD_P_SERVICE -ErrorAction Stop; " + _SVC_STATE,
         {"service": validate_service}, timeout=45),
 }
+
+
+USER_LEVEL_OPERATIONS = frozenset({"add_printer_connection"})   # mengubah, tetapi hanya profil pengguna ini
 
 
 def _powershell_exe() -> str:
@@ -206,7 +215,7 @@ class RealWindowsAdapter:
             return OpResult(False, error="Eksekusi perubahan dinonaktifkan.", unsupported=True)
         if not self.is_windows():
             return OpResult(False, error="Hanya tersedia di Windows.", unsupported=True)
-        if not self.is_elevated():
+        if operation not in USER_LEVEL_OPERATIONS and not self.is_elevated():
             return OpResult(False, error="Butuh hak administrator.", unsupported=True)
         return self._execute(operation, spec, params)
 

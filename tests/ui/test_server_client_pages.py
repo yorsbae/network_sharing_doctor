@@ -110,7 +110,7 @@ class ServerClientPages(unittest.TestCase):
         page.share.setText("EPSON")
         self.assertTrue(page.check_btn.isEnabled())
         self.assertEqual(page.address.text(), "\\\\PC-KASIR\\EPSON")
-        self.assertIn("Windows + R", page.install_hint.text())
+        self.assertIn("Pasang printer ini", page.install_hint.text())      # tidak lagi menyuruh Windows + R
         page.host.setText("host; rm -rf /")
         self.assertFalse(page.check_btn.isEnabled())
         self.assertEqual(page.address.text(), "-")
@@ -269,16 +269,43 @@ class ServerClientPages(unittest.TestCase):
         self.assertEqual(win.nav.currentRow(), GOTO["scan"])
         self.assertIs(win.diagnose.outcome.request.role, Role.SERVER)
 
-    def test_settings_role_follows_the_choice_made_on_the_dashboard(self):
+    def _visible(self, win):
+        return [win.nav.item(i).text() for i in range(win.nav.count()) if not win.nav.item(i).isHidden()]
+
+    def test_menu_follows_the_mode_and_hides_the_other_role(self):
         from nsd.ui.main_window import GOTO, MainWindow
         ctx = self.ctx()
         win = MainWindow(ctx)
-        win.show()
-        self.app.processEvents()
+        self.assertEqual(self._visible(win), ["Dashboard", "Pengaturan"])          # belum memilih mode
+        self.assertFalse(win.mode_btn.isVisibleTo(win))
         win.dash.a_server.click()
-        win.nav.setCurrentRow(win.stack.count() - 1)
-        self.app.processEvents()
-        self.assertEqual(win.stack.currentWidget().role.currentData(), "server")
+        vis = self._visible(win)
+        self.assertIn("Server", vis)
+        self.assertNotIn("Client", vis)
+        self.assertNotIn("Scan printer", vis)
+        self.assertNotIn("Dashboard", vis)
+        self.assertEqual(win.nav.currentRow(), GOTO["server"])
+        self.assertEqual(win.mode_label.text(), "Mode: Server")
+        win._change_mode()                                                          # ganti mode lewat satu tombol
+        self.assertEqual(win.nav.currentRow(), 0)
+        win.dash.a_client.click()
+        vis = self._visible(win)
+        self.assertIn("Client", vis)
+        self.assertNotIn("Server", vis)
+        self.assertNotIn("Daftar printer", vis)
+        self.assertEqual(win.nav.currentRow(), GOTO["client"])
+        win.close()
+
+    def test_mode_is_remembered_across_restarts_and_settings_has_no_second_role_control(self):
+        from nsd.ui.main_window import GOTO, MainWindow
+        ctx = self.ctx()
+        ctx.settings.set("role", "client")
+        ctx.settings.set("role_chosen", True)
+        win = MainWindow(ctx)
+        self.assertEqual(win.nav.currentRow(), GOTO["client"])
+        self.assertNotIn("Server", self._visible(win))
+        settings = win.stack.widget(win.stack.count() - 1)
+        self.assertFalse(hasattr(settings, "role"))
         win.close()
 
     def test_scrolling_pages_never_overflow_horizontally_at_the_minimum_window_size(self):
@@ -374,3 +401,23 @@ class PrepareDialogUi(ServerClientPages):
         dlg._done([sp.ActionResult(acts[0], "verified", "Layanan berjalan.")])
         self.assertIn("Berhasil: ", dlg.log.toPlainText())
         self.assertTrue(dlg.applied_any)
+
+
+@unittest.skipUnless(HAVE_QT, "PySide6 tidak terpasang")
+class ClientInstallUi(ServerClientPages):
+    def test_install_needs_confirmation_and_reports_honestly(self):
+        from PySide6.QtWidgets import QMessageBox
+        from nsd.application import client_connect
+        from nsd.ui.client_page import ClientPage
+        page = ClientPage(self.ctx())
+        page.host.setText("SERVER01")
+        page.share.setText("EPSON")
+        self.assertTrue(page.install_btn.isEnabled())
+        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.No), \
+                mock.patch.object(client_connect, "connect_printer") as cp:
+            page._install()
+            cp.assert_not_called()
+        page._installed(client_connect.ConnectResult("unverified", "Perintah terkirim."))
+        self.assertIn("Belum terbukti", page.install_result.text())
+        page.kind.setCurrentIndex(1)                                                # folder: tidak ada tombol pasang
+        self.assertFalse(page.install_btn.isEnabled())

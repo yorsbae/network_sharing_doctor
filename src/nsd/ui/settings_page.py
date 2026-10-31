@@ -4,7 +4,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QCheckBox, QComboBox, QFormLayout, QMessageBox, QSpinBox, QVBoxLayout, QWidget
 
 from nsd.ui import theme
-from nsd.ui.labels import ROLE_LABELS
 from nsd.ui.widgets.cards import panel
 
 
@@ -26,15 +25,6 @@ class SettingsPage(QWidget):
         f.setVerticalSpacing(12)
         f.setLabelAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         f.addRow("Folder data", theme.label(str(ctx.data_dir), selectable=True))
-        f.addRow("Level otomatisasi", theme.label("Diagnosis saja (dikunci pada Fase 1)"))
-
-        self.role = role = QComboBox()
-        for key, text in ROLE_LABELS.items():
-            role.addItem(text, key)
-        role.setCurrentIndex(max(0, role.findData(s.get("role"))))
-        role.currentIndexChanged.connect(lambda _i: s.set("role", role.currentData()))
-        f.addRow("Peran bawaan", role)
-
         mode = QComboBox()
         for key, text in theme.THEME_CHOICES:
             mode.addItem(text, key)
@@ -54,21 +44,14 @@ class SettingsPage(QWidget):
         days.valueChanged.connect(lambda v: s.set("retention_days", int(v)))
         f.addRow("Simpan riwayat", days)
         lay.addLayout(f)
+        lay.addWidget(theme.label("Server atau Client dipilih lewat tombol Ganti mode di menu kiri. Autostart server ada "
+                                  "di halaman Server.", "caption"))
         lay.addWidget(self._repair_section())
-        lay.addWidget(self._background_section())
 
         for w in ctx.warnings:
             lay.addWidget(theme.callout("Peringatan", w))
         outer.addWidget(body)
         outer.addStretch(1)
-
-    def showEvent(self, e) -> None:  # noqa: N802
-        super().showEvent(e)
-        i = max(0, self.role.findData(self.ctx.settings.get("role")))      # peran bisa diganti dari Dashboard
-        if i != self.role.currentIndex():
-            self.role.blockSignals(True)
-            self.role.setCurrentIndex(i)
-            self.role.blockSignals(False)
 
     def _repair_section(self) -> QWidget:
         box, bl = panel()
@@ -84,37 +67,6 @@ class SettingsPage(QWidget):
         bl.addWidget(self.repair)
         bl.addWidget(theme.label("Saat ini hanya menyalakan layanan Windows yang berhenti. Perlu hak administrator, "
                                  "keadaan awal disimpan, hasil diverifikasi, dan semuanya dicatat di log audit.", "caption"))
-        return box
-
-    def _background_section(self) -> QWidget:
-        """Jalankan monitor otomatis saat login (Task Scheduler). Hanya build terpaket di Windows."""
-        import sys
-
-        from nsd.application import autostart
-
-        box, bl = panel()
-        bl.addWidget(theme.label("Monitor latar belakang", "section"))
-        self.autostart = QCheckBox("Jalankan monitor otomatis saat saya login")
-        usable = sys.platform == "win32" and getattr(sys, "frozen", False)
-        reason = ("" if usable else "Tersedia di Windows pada aplikasi terpaket (NSD.exe). "
-                  "Dari skrip Python, pilihan ini dimatikan.")
-        if usable:
-            self.autostart.setChecked(autostart.status().ok)
-
-            def toggled(on: bool) -> None:
-                res = (autostart.install("logon-user", host="localhost", share="", target_type="both", interval=300)
-                       if on else autostart.uninstall())
-                if not res.ok:
-                    self.autostart.blockSignals(True)
-                    self.autostart.setChecked(not on)
-                    self.autostart.blockSignals(False)
-                    QMessageBox.warning(self, "Autostart", res.message)
-
-            self.autostart.toggled.connect(toggled)
-        else:
-            self.autostart.setEnabled(False)
-        bl.addWidget(self.autostart)
-        bl.addWidget(theme.label(reason or "Monitor hanya membaca status dan mencatat perubahan; tidak memperbaiki apa pun.", "caption"))
         return box
 
     @staticmethod

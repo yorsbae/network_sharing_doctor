@@ -130,13 +130,15 @@ class DashboardPage(QWidget):
         if not self.ctx.settings.get("role_chosen"):
             self.role_title.setText("Mulai di sini: untuk apa komputer ini?")
             self.role_text.setText("Server adalah komputer yang printernya terpasang dan dibagikan. Client adalah komputer lain "
-                                   "yang ingin memakai printer itu. Pilih satu; bisa diganti kapan saja.")
+                                   "yang ingin memakai printer itu. Menu akan menyesuaikan pilihan Anda dan bisa diganti "
+                                   "kapan saja lewat tombol Ganti mode di menu kiri.")
             return
         server = self.ctx.settings.get("role") == "server"
         self.role_title.setText("Komputer ini berperan sebagai " + ("Server" if server else "Client"))
         self.role_text.setText(
-            "Buka Server untuk memeriksa kesiapan dan menyalin alamat untuk client." if server else
-            "Buka Client untuk mencari server dan memeriksa koneksi ke printernya.")
+            "Menu kiri hanya menampilkan yang dipakai server. Pilih Client di bawah bila komputer ini ingin mengganti mode."
+            if server else
+            "Menu kiri hanya menampilkan yang dipakai client. Pilih Server di bawah bila komputer ini ingin mengganti mode.")
 
     def showEvent(self, e) -> None:  # noqa: N802
         super().showEvent(e)

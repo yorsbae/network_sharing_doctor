@@ -48,17 +48,14 @@ class ServerPage(QWidget):
         self.refresh_btn.clicked.connect(self.refresh)
         lay.addWidget(theme.header("Server", "Komputer ini membagikan printer ke komputer lain di jaringan.", self.refresh_btn))
         lay.addWidget(theme.callout(
-            "Tidak ada program server yang perlu dijalankan",
-            "Windows sendiri melayani client selama printer terpasang dan dibagikan di komputer ini. Tombol "
-            "\"Jalankan server\" menyalakan pemantau di latar belakang yang mencatat siapa yang menyambung dan siapa yang "
-            "mencetak (hanya membaca). Komputer ini harus menyala dan tersambung ke jaringan saat client mencetak."))
-
-        lay.addWidget(self._control_panel())
-        lay.addWidget(self._activity_panel())
+            "Cara kerjanya",
+            "Empat langkah: siapkan komputer ini, bagikan alamatnya ke client, jalankan server, lalu pantau siapa yang "
+            "menyambung dan mencetak. Windows sendiri yang melayani client; Server NSD hanya memantau (hanya membaca). "
+            "Komputer ini harus menyala dan tersambung ke jaringan saat client mencetak."))
 
         box, bl = panel()
         top = QHBoxLayout()
-        top.addWidget(theme.label("Kesiapan server", "section"), 1)
+        top.addWidget(theme.label("1. Siapkan komputer ini", "section"), 1)
         self.verdict_row = QHBoxLayout()
         top.addLayout(self.verdict_row)
         bl.addLayout(top)
@@ -80,7 +77,7 @@ class ServerPage(QWidget):
         lay.addWidget(box)
 
         box2, al = panel()
-        al.addWidget(theme.label("Alamat untuk client", "section"))
+        al.addWidget(theme.label("2. Bagikan alamat ke client", "section"))
         self.addr_lay = QVBoxLayout()
         self.addr_lay.setSpacing(6)
         al.addLayout(self.addr_lay)
@@ -99,6 +96,8 @@ class ServerPage(QWidget):
         self.note = theme.label("", "caption")
         al.addWidget(self.note)
         lay.addWidget(box2)
+        lay.addWidget(self._control_panel())
+        lay.addWidget(self._activity_panel())
         lay.addStretch(1)
         self._render_addresses(None)
 
@@ -106,7 +105,7 @@ class ServerPage(QWidget):
     def _control_panel(self) -> QWidget:
         box, bl = panel()
         top = QHBoxLayout()
-        top.addWidget(theme.label("Server NSD", "section"), 1)
+        top.addWidget(theme.label("3. Jalankan server", "section"), 1)
         self.run_chip_row = QHBoxLayout()
         top.addLayout(self.run_chip_row)
         bl.addLayout(top)
@@ -135,8 +134,11 @@ class ServerPage(QWidget):
 
     def _activity_panel(self) -> QWidget:
         box, bl = panel()
-        bl.addWidget(theme.label("Aktivitas langsung", "section"))
-        bl.addWidget(theme.label("Komputer yang menyambung dan pekerjaan cetak yang masuk, terbaru di atas.", "caption"))
+        bl.addWidget(theme.label("4. Pantau client", "section"))
+        bl.addWidget(theme.label("Client yang sedang tersambung", "caption"))
+        self.clients_label = theme.label("", wrap=True, selectable=True)
+        bl.addWidget(self.clients_label)
+        bl.addWidget(theme.label("Aktivitas langsung, terbaru di atas", "caption"))
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
         self.log_view.setMaximumBlockCount(500)
@@ -152,7 +154,19 @@ class ServerPage(QWidget):
 
     def _poll(self) -> None:
         self._update_run_state()
+        self._render_clients()
         self._render_log()
+
+    def _render_clients(self) -> None:
+        if not server_control.is_running(self.ctx.data_dir):
+            self.clients_label.setText("Server belum dijalankan. Klik Jalankan server untuk memantau client.")
+            return
+        names = []
+        for c in (server_control.read_status(self.ctx.data_dir) or {}).get("clients", []):
+            if isinstance(c, dict) and c.get("client"):
+                names.append(str(c["client"]) + (f" ({c['user']})" if c.get("user") else ""))
+        self.clients_label.setText(f"{len(names)} client: " + ", ".join(names) if names else
+                                   "Belum ada client yang tersambung.")
 
     def _update_run_state(self) -> None:
         running = server_control.is_running(self.ctx.data_dir)

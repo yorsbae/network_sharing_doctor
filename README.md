@@ -21,6 +21,11 @@ Kode keluar `scan`: 0 = tidak ada pemeriksaan gagal, 1 = ada yang gagal, 2 = inp
 ## Tampilan
 Menu: Dashboard, Server, Client, Scan printer, Kode error, Daftar printer, Antrean cetak, Kertas, Log, Pengaturan. Arah desain dan pagar anti-slop ada di [`DESIGN.md`](DESIGN.md).
 
+## Mode komputer dan menu
+Mode dipilih sekali di Dashboard (Server atau Client) dan diganti lewat tombol **Ganti mode** di menu kiri; tidak ada pilihan peran kedua di Pengaturan.
+Mode Server menampilkan: Server, Daftar printer, Antrean cetak, Log, Pengaturan. Mode Client menampilkan: Client, Scan printer, Kode error, Kertas, Log, Pengaturan.
+Server: 1 siapkan komputer (Siapkan otomatis), 2 bagikan alamat, 3 jalankan server, 4 pantau client yang tersambung. Client: 1 pilih server, 2 pilih printer, 3 periksa dan **Pasang printer ini** (tanpa administrator).
+
 ## Server dan client: cara memakainya
 **Server** = komputer yang printernya terpasang dan dibagikan. **Client** = komputer lain yang mencetak ke printer itu.
 **Tidak ada program server yang harus dijalankan**: Windows sendiri melayani client selama printer dibagikan serta layanan

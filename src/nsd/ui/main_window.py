@@ -6,7 +6,7 @@ import sys
 from PySide6.QtCore import QEvent, QSize, Qt
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QHBoxLayout, QLabel, QListWidget, QMainWindow,
-                               QMessageBox, QStackedWidget, QVBoxLayout, QWidget)
+                               QMessageBox, QPushButton, QStackedWidget, QVBoxLayout, QWidget)
 
 from nsd import __version__
 from nsd.bootstrap import bootstrap
@@ -28,6 +28,8 @@ from nsd.ui.settings_page import SettingsPage
 NAV = (("Dashboard", "home"), ("Server", "server"), ("Client", "client"), ("Scan printer", "scan"),
        ("Kode error", "code"), ("Daftar printer", "printer"), ("Antrean cetak", "queue"), ("Kertas", "paper"),
        ("Log", "log"), ("Pengaturan", "settings"))
+# Menu yang tampil per mode (indeks NAV). Belum memilih mode: hanya Dashboard (pilih mode) dan Pengaturan.
+MENU_BY_ROLE = {None: {0, 9}, "server": {1, 5, 6, 8, 9}, "client": {2, 3, 4, 7, 8, 9}}
 GOTO = {"server": 1, "client": 2, "scan": 3, "errors": 4, "printers": 5, "queue": 6, "log": 8}
 
 
@@ -68,7 +70,7 @@ class MainWindow(QMainWindow):
         self.nav.setCurrentRow(0)
         self.dash.start_scan.connect(self._scan_this_computer)
         self.dash.open_scan.connect(self._open_diagnose)
-        self.dash.goto.connect(lambda key: self.nav.setCurrentRow(GOTO[key]))
+        self.dash.goto.connect(self._goto)
         self.diagnose.scanned.connect(self._after_scan)
         self.errors.scan_with.connect(self._scan_with_code)
         self.server.scan_self.connect(self._scan_this_computer)
@@ -116,6 +118,14 @@ class MainWindow(QMainWindow):
         meta.setObjectName("sideMeta")
         for w in (cap, self.side_status, meta):
             sl.addWidget(w)
+        sl.addSpacing(8)
+        self.mode_label = theme.label("", wrap=False)
+        self.mode_label.setObjectName("sideStatus")
+        self.mode_btn = QPushButton("Ganti mode")
+        self.mode_btn.setAccessibleName("Ganti mode komputer antara Server dan Client")
+        self.mode_btn.clicked.connect(self._change_mode)
+        sl.addWidget(self.mode_label)
+        sl.addWidget(self.mode_btn)
 
         root = QWidget()
         lay = QHBoxLayout(root)
@@ -128,6 +138,34 @@ class MainWindow(QMainWindow):
         theme.notifier.changed.connect(self._restyle)
         self._restyle()
         self._refresh_side_status()
+        self._apply_role(open_role_page=True)
+
+    # ---- mode komputer: satu-satunya tempat memilih/mengganti peran ----
+    def _role(self) -> str | None:
+        if not self.ctx.settings.get("role_chosen"):
+            return None
+        return "server" if self.ctx.settings.get("role") == "server" else "client"
+
+    def _apply_role(self, open_role_page: bool = False) -> None:
+        role = self._role()
+        allowed = MENU_BY_ROLE[role]
+        for i in range(self.nav.count()):
+            self.nav.item(i).setHidden(i not in allowed)
+        self.mode_label.setText({"server": "Mode: Server", "client": "Mode: Client"}.get(role, "Mode: belum dipilih"))
+        self.mode_btn.setVisible(role is not None)
+        if open_role_page and role:
+            self.nav.setCurrentRow(GOTO[role])
+        elif self.nav.currentRow() not in allowed:
+            self.nav.setCurrentRow(GOTO[role] if role else 0)
+
+    def _goto(self, key: str) -> None:
+        self._apply_role()
+        self.nav.setCurrentRow(GOTO[key])
+
+    def _change_mode(self) -> None:
+        """Tampilkan lagi pilihan mode (Dashboard); menu lain menyesuaikan setelah mode dipilih."""
+        self.nav.item(0).setHidden(False)
+        self.nav.setCurrentRow(0)
 
     def eventFilter(self, obj, ev):  # noqa: N802
         """Cincin fokus menu hanya saat navigasi keyboard; klik mouse dan fokus awal tidak memunculkannya."""
